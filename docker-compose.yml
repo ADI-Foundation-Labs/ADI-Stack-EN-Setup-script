@@ -1,31 +1,45 @@
 services:
+  cloudflared-tcp-proxy:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-tcp-proxy
+    command: >
+      access tcp
+      --hostname replay.ab.testnet.adifoundation.ai
+      --listener 0.0.0.0:3053
+    networks:
+      - zkos-net
+
   external_node:
     image: ghcr.io/matter-labs/zksync-os-server:v0.8.4
     container_name: adi_testnet_external_node
     restart: unless-stopped
-    network_mode: host
     working_dir: /app
+    depends_on:
+      - cloudflared-tcp-proxy
     environment:
-      # Stable values from ADI Testnet
       genesis_bridgehub_address: "0xc1662F0478e0E93Dc6CC321281Eb180A21036Da6"
       genesis_chain_id: 36900
-      sequencer_block_replay_download_address: "replay.ab.testnet.adifoundation.ai:443"
+      sequencer_block_replay_download_address: "cloudflared-tcp-proxy:3053"
       general_main_node_rpc_url: "https://rpc.ab.testnet.adifoundation.ai/"
-
-      # Paths inside the container
       general_rocks_db_path: "/chain/db/node1"
       prover_api_object_store_file_backed_base_path: "/chain/db/shared"
       sequencer_block_dump_path: "/chain/db/block_dumps"
-
-      # Network configuration
-      sequencer_block_replay_server_address: "0.0.0.0:3193"
-      rpc_address: "0.0.0.0:3999"
-      status_server_address: "0.0.0.0:3072"
-      general_prometheus_port: "3313"
-
-      # L1 RPC URL
+      sequencer_block_replay_server_address: "0.0.0.0:3054"
+      rpc_address: "0.0.0.0:3050"
+      status_server_address: "0.0.0.0:3071"
+      general_prometheus_port: "3312"
       general_l1_rpc_url: "${GENERAL_L1_RPC_URL}"
-
       RUST_LOG: "info"
     volumes:
       - ${CHAIN_DATA_DIR:-./chain_data}:/chain
+    ports:
+      - "3050:3050"
+      - "3071:3071"
+      - "3054:3054"
+      - "3312:3312"
+    networks:
+      - zkos-net
+
+networks:
+  zkos-net:
+    driver: bridge

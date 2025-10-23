@@ -30,7 +30,8 @@ Helper scripts and configuration for running an ADI Testnet external node.
    ./external-node.sh start --l1-rpc-url https://your-l1-endpoint
    ```
 
-   The start command prepares `CHAIN_DATA_DIR` (and its key subdirectories) with permissive permissions so the container can initialise RocksDB on the first run.
+   The start command prepares `CHAIN_DATA_DIR` (and its key subdirectories).
+   Starting the stack also launches the `cloudflared-tcp-proxy` service, which exposes the Cloudflare Access-protected replay endpoint on port `3053` inside the Docker network.
 
 Additional helpful commands:
 
@@ -42,3 +43,13 @@ Additional helpful commands:
 
 Set `CHAIN_DATA_DIR`, `SHARED_PROOF_DIR`, or `DOCKER_COMPOSE_FILE` to override defaults if your layout differs from this repository.  
 The `start` command requires `GENERAL_L1_RPC_URL`; prefix the command with `GENERAL_L1_RPC_URL=...` if you prefer not to export it permanently.
+
+## Exposed ports
+
+- `3050` — `external_node` JSON-RPC endpoint (`rpc_address`).
+- `3054` — External Node Block Replay port so it can be shared further (`sequencer_block_replay_server_address`)
+- `3071` — Node status/health server (`status_server_address`).
+- `3312` — Prometheus metrics endpoint (`general_prometheus_port`).
+
+## Common issues
+If you see an error like `Committed batch is not present in proof storage` - sync proof storage one more time via `./external-node.sh download`

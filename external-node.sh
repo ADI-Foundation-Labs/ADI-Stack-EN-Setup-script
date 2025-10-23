@@ -17,12 +17,12 @@ Usage: external-node.sh <command> [options]
 
 Commands:
   download   Download shared proof storage from Azure Blob Storage.
-  start      Start the external node via docker compose.
-  stop       Stop the external node.
-  down       Stop and remove the external node container.
-  status     Show docker compose service status.
-  logs       Follow logs from the external node container.
-  pull       Pull the latest container image defined in docker-compose.yml.
+  start      Start the external node and proxy via docker compose.
+  stop       Stop the external node and proxy.
+  down       Stop and remove the external node containers.
+  status     Show docker compose services status.
+  logs       Follow logs from the external node containers.
+  pull       Pull the latest container images defined in docker-compose.yml.
   help       Show this help text.
 
 Environment variables:
@@ -178,13 +178,13 @@ EOF
   GENERAL_L1_RPC_URL="$l1_rpc_url"
   export GENERAL_L1_RPC_URL
   log "Starting ADI external node container (L1 RPC URL configured)."
-  compose up -d external_node
+  compose up -d
   log "External node is starting. Check logs with './external-node.sh logs'."
 }
 
 stop_node() {
   log "Stopping ADI external node container (container preserved)."
-  compose stop external_node
+  compose stop
 }
 
 down_node() {
@@ -193,16 +193,16 @@ down_node() {
 }
 
 show_status() {
-  compose ps external_node
+  compose ps
 }
 
 follow_logs() {
-  compose logs -f external_node
+  compose logs -f
 }
 
 pull_image() {
-  log "Pulling container image for external_node."
-  compose pull external_node
+  log "Pulling container images."
+  compose pull
 }
 
 main() {
