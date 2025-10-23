@@ -1,0 +1,31 @@
+services:
+  external_node:
+    image: ghcr.io/matter-labs/zksync-os-server:v0.8.4
+    container_name: adi_testnet_external_node
+    restart: unless-stopped
+    network_mode: host
+    working_dir: /app
+    environment:
+      # Stable values from ADI Testnet
+      genesis_bridgehub_address: "0xc1662F0478e0E93Dc6CC321281Eb180A21036Da6"
+      genesis_chain_id: 36900
+      sequencer_block_replay_download_address: "replay.ab.testnet.adifoundation.ai:443"
+      general_main_node_rpc_url: "https://rpc.ab.testnet.adifoundation.ai/"
+
+      # Paths inside the container
+      general_rocks_db_path: "/chain/db/node1"
+      prover_api_object_store_file_backed_base_path: "/chain/db/shared"
+      sequencer_block_dump_path: "/chain/db/block_dumps"
+
+      # Network configuration
+      sequencer_block_replay_server_address: "0.0.0.0:3193"
+      rpc_address: "0.0.0.0:3999"
+      status_server_address: "0.0.0.0:3072"
+      general_prometheus_port: "3313"
+
+      # L1 RPC URL
+      general_l1_rpc_url: "${GENERAL_L1_RPC_URL}"
+
+      RUST_LOG: "info"
+    volumes:
+      - ${CHAIN_DATA_DIR:-./chain_data}:/chain
