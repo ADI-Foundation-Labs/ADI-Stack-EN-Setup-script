@@ -27,11 +27,13 @@ Helper scripts and configuration for running an ADI Testnet external node.
 
    ```bash
    ./external-node.sh start
-   ./external-node.sh start --l1-rpc-url https://your-l1-endpoint
+   ./external-node.sh start --l1-rpc-url {RPC}
    ```
 
    The start command prepares `CHAIN_DATA_DIR` (and its key subdirectories).
-   Starting the stack also launches the `cloudflared-tcp-proxy` service, which exposes the Cloudflare Access-protected replay endpoint on port `3053` inside the Docker network.
+   Starting the stack also launches:
+   - The `cloudflared-tcp-proxy` service, which exposes the Cloudflare Access-protected replay endpoint on port `3053` inside the Docker network
+   - The `proof-sync` service, which automatically syncs new proofs from Azure Blob Storage every 1 minute (configurable via `PROOF_SYNC_INTERVAL`)
 
 Additional helpful commands:
 
@@ -41,8 +43,34 @@ Additional helpful commands:
 - `./external-node.sh down` — stop and remove the container.
 - `./external-node.sh pull` — pull the latest container image.
 
-Set `CHAIN_DATA_DIR`, `SHARED_PROOF_DIR`, or `DOCKER_COMPOSE_FILE` to override defaults if your layout differs from this repository.  
+Set `CHAIN_DATA_DIR`, `SHARED_PROOF_DIR`, or `DOCKER_COMPOSE_FILE` to override defaults if your layout differs from this repository.
 The `start` command requires `GENERAL_L1_RPC_URL`; prefix the command with `GENERAL_L1_RPC_URL=...` if you prefer not to export it permanently.
+
+## Automatic Proof Synchronization
+
+The `proof-sync` sidecar container automatically keeps your local proof storage synchronized with Azure Blob Storage. This prevents the external node from crashing when new proofs are processed but not yet available locally.
+
+### Configuration
+
+Customize the proof sync behavior using these environment variables:
+
+- `PROOF_SYNC_INTERVAL` — Sync interval in seconds (default: `60` = 1 minutes)
+- `PROOF_STORAGE_URL` — Azure Blob URL or SAS URL for shared proofs (default: `https://adiproofs.blob.core.windows.net/shared`)
+- `PROOF_SYNC_DELETE` — Set to `true` to delete local files that no longer exist in Azure (default: `false`)
+
+Example:
+
+```bash
+export PROOF_SYNC_INTERVAL=180  # Sync every 3 minutes
+export PROOF_SYNC_DELETE=true   # Keep local storage in exact sync
+./external-node.sh start
+```
+
+The proof-sync service runs continuously alongside the external node and logs each sync operation. Check its logs with:
+
+```bash
+docker logs -f adi_testnet_proof_sync
+```
 
 ## Exposed ports
 
@@ -52,4 +80,13 @@ The `start` command requires `GENERAL_L1_RPC_URL`; prefix the command with `GENE
 - `3312` — Prometheus metrics endpoint (`general_prometheus_port`).
 
 ## Common issues
-If you see an error like `Committed batch is not present in proof storage` - sync proof storage one more time via `./external-node.sh download`
+
+### Committed batch is not present in proof storage
+
+The `proof-sync` sidecar service automatically prevents this issue by continuously syncing new proofs from Azure Blob Storage.
+
+If you still encounter this error:
+1. Check that the `proof-sync` container is running: `docker ps | grep proof_sync`
+2. Check proof-sync logs: `docker logs adi_testnet_proof_sync`
+3. Manually sync if needed: `./external-node.sh download`
+4. Consider reducing `PROOF_SYNC_INTERVAL` for more frequent syncs
