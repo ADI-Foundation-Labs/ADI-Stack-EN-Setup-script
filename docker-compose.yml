@@ -1,6 +1,7 @@
 services:
   cloudflared-tcp-proxy:
     image: cloudflare/cloudflared:latest
+    restart: unless-stopped
     container_name: cloudflared-tcp-proxy
     command: >
       access tcp
@@ -9,8 +10,24 @@ services:
     networks:
       - zkos-net
 
+  proof-sync:
+    image: peterdavehello/azcopy:latest
+    container_name: adi_testnet_proof_sync
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/sync-proofs.sh"]
+    environment:
+      PROOF_STORAGE_URL: "${PROOF_STORAGE_URL:-https://adiproofs.blob.core.windows.net/shared}"
+      SHARED_PROOF_DIR: "/chain/db/shared"
+      SYNC_INTERVAL: "${PROOF_SYNC_INTERVAL:-60}"
+      DELETE_DESTINATION: "${PROOF_SYNC_DELETE:-false}"
+    volumes:
+      - ${CHAIN_DATA_DIR:-./chain_data}:/chain
+      - ./sync-proofs.sh:/sync-proofs.sh:ro
+    networks:
+      - zkos-net
+
   external_node:
-    image: ghcr.io/matter-labs/zksync-os-server:v0.8.4
+    image: harbor.sre.ideasoft.io/adi-chain/external-node:latest
     container_name: adi_testnet_external_node
     restart: unless-stopped
     working_dir: /app

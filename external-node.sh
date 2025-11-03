@@ -16,21 +16,24 @@ usage() {
 Usage: external-node.sh <command> [options]
 
 Commands:
-  download   Download shared proof storage from Azure Blob Storage.
-  start      Start the external node and proxy via docker compose.
-  stop       Stop the external node and proxy.
-  down       Stop and remove the external node containers.
+  download   Initial/manual sync of shared proof storage from Azure Blob Storage.
+             Note: When running, the proof-sync service automatically syncs new proofs.
+  start      Start the external node, proxy, and proof-sync service via docker compose.
+  stop       Stop the external node and all services.
+  down       Stop and remove all containers.
   status     Show docker compose services status.
-  logs       Follow logs from the external node containers.
+  logs       Follow logs from all containers.
   pull       Pull the latest container images defined in docker-compose.yml.
   help       Show this help text.
 
 Environment variables:
-  PROOF_STORAGE_URL   Azure Blob URL or SAS URL for shared proofs (defaults to https://adiproofs.blob.core.windows.net/shared).
-  DOCKER_COMPOSE_FILE Path to docker-compose.yml (defaults to repository file).
-  CHAIN_DATA_DIR      Host directory that maps to /chain inside the container.
-  SHARED_PROOF_DIR    Destination for shared proofs (defaults to $CHAIN_DATA_DIR/db/shared).
-  GENERAL_L1_RPC_URL  (required) L1 RPC endpoint used by the external node.
+  PROOF_STORAGE_URL    Azure Blob URL or SAS URL for shared proofs (defaults to https://adiproofs.blob.core.windows.net/shared).
+  PROOF_SYNC_INTERVAL  Automatic sync interval in seconds (defaults to 60 = 1 minute).
+  PROOF_SYNC_DELETE    Set to 'true' to delete local files not in Azure (defaults to false).
+  DOCKER_COMPOSE_FILE  Path to docker-compose.yml (defaults to repository file).
+  CHAIN_DATA_DIR       Host directory that maps to /chain inside the container.
+  SHARED_PROOF_DIR     Destination for shared proofs (defaults to $CHAIN_DATA_DIR/db/shared).
+  GENERAL_L1_RPC_URL   (required) L1 RPC endpoint used by the external node.
 EOF
 }
 
@@ -93,6 +96,12 @@ download_shared() {
       -h|--help)
         cat <<'EOF'
 Usage: external-node.sh download [--source <azure-sas-url>] [--destination <dir>] [--force]
+
+Initial/manual sync of shared proof storage from Azure Blob Storage.
+
+Note: When the node is running, the proof-sync sidecar service automatically
+      syncs new proofs every PROOF_SYNC_INTERVAL seconds. This command is primarily
+      for initial setup or manual synchronization.
 
 Options:
   --source, -s       Azure Blob SAS URL to copy from (defaults to PROOF_STORAGE_URL or the adi snapshot).
