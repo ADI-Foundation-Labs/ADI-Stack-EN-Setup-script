@@ -1,6 +1,7 @@
 services:
   cloudflared-tcp-proxy:
     image: cloudflare/cloudflared:latest
+    restart: unless-stopped
     container_name: cloudflared-tcp-proxy
     command: >
       access tcp
@@ -26,7 +27,7 @@ services:
       - zkos-net
 
   external_node:
-    image: adi-foundation/adi-external-node:latest
+    image: harbor.sre.ideasoft.io/adi-chain/external-node:latest
     container_name: adi_testnet_external_node
     restart: unless-stopped
     working_dir: /app
