@@ -27,7 +27,7 @@ Helper scripts and configuration for running an ADI Testnet external node.
 
    ```bash
    ./external-node.sh start
-   ./external-node.sh start --l1-rpc-url {RPC}
+   ./external-node.sh start --l1-rpc-url https://{RPC}
    ```
 
    The start command prepares `CHAIN_DATA_DIR` (and its key subdirectories).
@@ -78,6 +78,12 @@ docker logs -f adi_testnet_proof_sync
 - `3054` — External Node Block Replay port so it can be shared further (`sequencer_block_replay_server_address`)
 - `3071` — Node status/health server (`status_server_address`).
 - `3312` — Prometheus metrics endpoint (`general_prometheus_port`).
+
+## Upgrades
+
+For version-specific upgrade instructions, see the [upgrades](./upgrades/) directory:
+
+- [v0.8.4 to v0.10.0](./upgrades/v0.8.4_to_v0.10.0.md) - **Breaking upgrade** requiring full chain resync
 
 ## Common issues
 

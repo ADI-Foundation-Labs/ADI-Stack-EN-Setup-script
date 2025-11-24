@@ -40,13 +40,13 @@ services:
       general_main_node_rpc_url: "https://rpc.ab.testnet.adifoundation.ai/"
       general_rocks_db_path: "/chain/db/node1"
       prover_api_object_store_file_backed_base_path: "/chain/db/shared"
-      sequencer_block_dump_path: "/chain/db/block_dumps"
+      sequencer_block_dump_path: "/chain/db/node1/block_dumps"
       sequencer_block_replay_server_address: "0.0.0.0:3054"
       rpc_address: "0.0.0.0:3050"
       status_server_address: "0.0.0.0:3071"
       general_prometheus_port: "3312"
       general_l1_rpc_url: "${GENERAL_L1_RPC_URL}"
-      RUST_LOG: "info"
+      RUST_LOG: "info,zksync_os_server=info,zksync_os_sequencer=info,zksync_os_merkle_tree=info,zksync_os_priority_tree=info,zksync_os_server::prover_api=info"
     volumes:
       - ${CHAIN_DATA_DIR:-./chain_data}:/chain
     ports:
