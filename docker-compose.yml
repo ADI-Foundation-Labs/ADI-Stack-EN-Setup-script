@@ -2,42 +2,42 @@ services:
   cloudflared-tcp-proxy:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    container_name: cloudflared-tcp-proxy
+    container_name: ${CONTAINER_PREFIX:-adi_mainnet}_cloudflared_proxy
     command: >
       access tcp
-      --hostname replay.ab.testnet.adifoundation.ai
+      --hostname ${REPLAY_ADDRESS:-replay.adifoundation.ai}
       --listener 0.0.0.0:3053
     networks:
       - zkos-net
 
   proof-sync:
     image: peterdavehello/azcopy:latest
-    container_name: adi_testnet_proof_sync
+    container_name: ${CONTAINER_PREFIX:-adi_mainnet}_proof_sync
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/sync-proofs.sh"]
     environment:
-      PROOF_STORAGE_URL: "${PROOF_STORAGE_URL:-https://adiproofs.blob.core.windows.net/shared}"
+      PROOF_STORAGE_URL: "${PROOF_STORAGE_URL:-https://adimainnet.blob.core.windows.net/proofs}"
       SHARED_PROOF_DIR: "/chain/db/shared"
       SYNC_INTERVAL: "${PROOF_SYNC_INTERVAL:-60}"
       DELETE_DESTINATION: "${PROOF_SYNC_DELETE:-false}"
     volumes:
-      - ${CHAIN_DATA_DIR:-./chain_data}:/chain
+      - ${CHAIN_DATA_DIR:-./mainnet_data}:/chain
       - ./sync-proofs.sh:/sync-proofs.sh:ro
     networks:
       - zkos-net
 
   external_node:
     image: harbor.sre.ideasoft.io/adi-chain/external-node:latest
-    container_name: adi_testnet_external_node
+    container_name: ${CONTAINER_PREFIX:-adi_mainnet}_external_node
     restart: unless-stopped
     working_dir: /app
     depends_on:
       - cloudflared-tcp-proxy
     environment:
-      genesis_bridgehub_address: "0xc1662F0478e0E93Dc6CC321281Eb180A21036Da6"
-      genesis_chain_id: 36900
+      genesis_bridgehub_address: "${BRIDGEHUB_ADDRESS:-0x7a38c18a229ef8a0ae7104ba272a46280f2d59cb}"
+      genesis_chain_id: "${CHAIN_ID:-36900}"
       sequencer_block_replay_download_address: "cloudflared-tcp-proxy:3053"
-      general_main_node_rpc_url: "https://rpc.ab.testnet.adifoundation.ai/"
+      general_main_node_rpc_url: "${MAIN_RPC_URL:-https://rpc.adifoundation.ai}"
       general_rocks_db_path: "/chain/db/node1"
       prover_api_object_store_file_backed_base_path: "/chain/db/shared"
       sequencer_block_dump_path: "/chain/db/node1/block_dumps"
@@ -48,7 +48,7 @@ services:
       general_l1_rpc_url: "${GENERAL_L1_RPC_URL}"
       RUST_LOG: "info,zksync_os_server=info,zksync_os_sequencer=info,zksync_os_merkle_tree=info,zksync_os_priority_tree=info,zksync_os_server::prover_api=info"
     volumes:
-      - ${CHAIN_DATA_DIR:-./chain_data}:/chain
+      - ${CHAIN_DATA_DIR:-./mainnet_data}:/chain
     ports:
       - "3050:3050"
       - "3071:3071"

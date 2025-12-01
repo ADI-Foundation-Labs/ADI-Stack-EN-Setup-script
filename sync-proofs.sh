@@ -5,7 +5,7 @@ set -e
 # Runs periodically to keep local proof storage in sync with Azure Blob Storage
 
 SYNC_INTERVAL="${SYNC_INTERVAL:-60}"  # Default: 1 minute
-SOURCE="${PROOF_STORAGE_URL:-https://adiproofs.blob.core.windows.net/shared}"
+SOURCE="${PROOF_STORAGE_URL:-https://adimainnet.blob.core.windows.net/proofs}"
 DESTINATION="${SHARED_PROOF_DIR:-/chain/db/shared}"
 DELETE_DESTINATION="${DELETE_DESTINATION:-false}"
 

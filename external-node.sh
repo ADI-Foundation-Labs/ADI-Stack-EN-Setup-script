@@ -5,15 +5,70 @@ IFS=$'\n\t'
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-$PROJECT_ROOT/docker-compose.yml}"
-CHAIN_DATA_DIR="${CHAIN_DATA_DIR:-$PROJECT_ROOT/chain_data}"
-SHARED_PROOF_DIR="${SHARED_PROOF_DIR:-$CHAIN_DATA_DIR/db/shared}"
-DEFAULT_PROOF_STORAGE_URL="https://adiproofs.blob.core.windows.net/shared"
 
-export DOCKER_COMPOSE_FILE CHAIN_DATA_DIR SHARED_PROOF_DIR
+# Network configuration
+NETWORK="${NETWORK:-mainnet}"
+
+# Network-specific configurations
+declare -A MAINNET_CONFIG=(
+    [name]="mainnet"
+    [chain_id]="36900"
+    [bridgehub_address]="0x7a38c18a229ef8a0ae7104ba272a46280f2d59cb"
+    [main_rpc_url]="https://rpc.adifoundation.ai"
+    [replay_address]="replay.adifoundation.ai"
+    [proof_storage_url]="https://adimainnet.blob.core.windows.net/proofs"
+    [container_prefix]="adi_mainnet"
+    [data_dir]="mainnet_data"
+)
+
+declare -A TESTNET_CONFIG=(
+    [name]="testnet"
+    [chain_id]="36900"
+    [bridgehub_address]="0xc1662F0478e0E93Dc6CC321281Eb180A21036Da6"
+    [main_rpc_url]="https://rpc.ab.testnet.adifoundation.ai/"
+    [replay_address]="replay.ab.testnet.adifoundation.ai"
+    [proof_storage_url]="https://adiproofs.blob.core.windows.net/shared"
+    [container_prefix]="adi_testnet"
+    [data_dir]="testnet_data"
+)
+
+# Function to load network configuration
+load_network_config() {
+    local -n config
+    case "$NETWORK" in
+        mainnet) config=MAINNET_CONFIG ;;
+        testnet) config=TESTNET_CONFIG ;;
+        *) fatal "Unknown network: $NETWORK. Supported: mainnet, testnet" ;;
+    esac
+
+    NETWORK_NAME="${config[name]}"
+    CHAIN_ID="${config[chain_id]}"
+    BRIDGEHUB_ADDRESS="${config[bridgehub_address]}"
+    MAIN_RPC_URL="${config[main_rpc_url]}"
+    REPLAY_ADDRESS="${config[replay_address]}"
+    DEFAULT_PROOF_STORAGE_URL="${config[proof_storage_url]}"
+    CONTAINER_PREFIX="${config[container_prefix]}"
+    DEFAULT_DATA_DIR="${config[data_dir]}"
+
+    # Set chain data directory (can be overridden by env var)
+    CHAIN_DATA_DIR="${CHAIN_DATA_DIR:-$PROJECT_ROOT/$DEFAULT_DATA_DIR}"
+    SHARED_PROOF_DIR="${SHARED_PROOF_DIR:-$CHAIN_DATA_DIR/db/shared}"
+
+    # Export for docker-compose
+    export NETWORK_NAME CHAIN_ID BRIDGEHUB_ADDRESS MAIN_RPC_URL REPLAY_ADDRESS
+    export CONTAINER_PREFIX CHAIN_DATA_DIR SHARED_PROOF_DIR
+    export PROOF_STORAGE_URL="${PROOF_STORAGE_URL:-$DEFAULT_PROOF_STORAGE_URL}"
+}
+
+export DOCKER_COMPOSE_FILE
 
 usage() {
   cat <<'EOF'
-Usage: external-node.sh <command> [options]
+Usage: external-node.sh [--testnet] <command> [options]
+
+Network Selection:
+  --testnet            Use testnet configuration (default: mainnet)
+  --network <name>     Select network explicitly (mainnet or testnet)
 
 Commands:
   download   Initial/manual sync of shared proof storage from Azure Blob Storage.
@@ -27,13 +82,21 @@ Commands:
   help       Show this help text.
 
 Environment variables:
-  PROOF_STORAGE_URL    Azure Blob URL or SAS URL for shared proofs (defaults to https://adiproofs.blob.core.windows.net/shared).
+  NETWORK              Network to use: mainnet (default) or testnet.
+  PROOF_STORAGE_URL    Azure Blob URL for shared proofs (network-specific default).
   PROOF_SYNC_INTERVAL  Automatic sync interval in seconds (defaults to 60 = 1 minute).
   PROOF_SYNC_DELETE    Set to 'true' to delete local files not in Azure (defaults to false).
   DOCKER_COMPOSE_FILE  Path to docker-compose.yml (defaults to repository file).
   CHAIN_DATA_DIR       Host directory that maps to /chain inside the container.
   SHARED_PROOF_DIR     Destination for shared proofs (defaults to $CHAIN_DATA_DIR/db/shared).
   GENERAL_L1_RPC_URL   (required) L1 RPC endpoint used by the external node.
+
+Examples:
+  # Run on mainnet (default)
+  ./external-node.sh start --l1-rpc-url https://eth-mainnet.example.com
+
+  # Run on testnet
+  ./external-node.sh --testnet start --l1-rpc-url https://eth-sepolia.example.com
 EOF
 }
 
@@ -69,7 +132,7 @@ compose() {
 
 download_shared() {
   local destination="$SHARED_PROOF_DIR"
-  local source="${PROOF_STORAGE_URL:-$DEFAULT_PROOF_STORAGE_URL}"
+  local source="$PROOF_STORAGE_URL"
   local delete_destination="false"
   local verbose="false"
 
@@ -121,6 +184,7 @@ EOF
 
   require_command azcopy "azcopy is required for downloading from Azure Blob Storage."
 
+  log "Downloading proofs for $NETWORK_NAME network..."
   mkdir -p "$destination"
   if [[ -n "${CHAIN_DATA_DIR:-}" && "$destination" == "$CHAIN_DATA_DIR"* ]]; then
     local parent_dir
@@ -186,18 +250,19 @@ EOF
 
   GENERAL_L1_RPC_URL="$l1_rpc_url"
   export GENERAL_L1_RPC_URL
-  log "Starting ADI external node container (L1 RPC URL configured)."
+  log "Starting ADI external node on $NETWORK_NAME (L1 RPC URL configured)."
+  log "Data directory: $CHAIN_DATA_DIR"
   compose up -d
   log "External node is starting. Check logs with './external-node.sh logs'."
 }
 
 stop_node() {
-  log "Stopping ADI external node container (container preserved)."
+  log "Stopping ADI $NETWORK_NAME external node (container preserved)."
   compose stop
 }
 
 down_node() {
-  log "Stopping and removing ADI external node stack."
+  log "Stopping and removing ADI $NETWORK_NAME external node stack."
   compose down
 }
 
@@ -215,6 +280,27 @@ pull_image() {
 }
 
 main() {
+  # Parse global network flags first
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --testnet)
+        NETWORK="testnet"
+        shift
+        ;;
+      --network)
+        [[ $# -ge 2 ]] || fatal "Missing value for $1."
+        NETWORK="$2"
+        shift 2
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  # Load network configuration
+  load_network_config
+
   local command="${1:-help}"
   shift || true
 
