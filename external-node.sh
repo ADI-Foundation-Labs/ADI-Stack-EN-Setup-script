@@ -23,8 +23,8 @@ declare -A MAINNET_CONFIG=(
 
 declare -A TESTNET_CONFIG=(
     [name]="testnet"
-    [chain_id]="36900"
-    [bridgehub_address]="0xc1662F0478e0E93Dc6CC321281Eb180A21036Da6"
+    [chain_id]="99999"
+    [bridgehub_address]="0xfd3ce61c65ddd1039e6e9e07fb6d6e16388d1cc7"
     [main_rpc_url]="https://rpc.ab.testnet.adifoundation.ai/"
     [replay_address]="replay.ab.testnet.adifoundation.ai"
     [proof_storage_url]="https://adiproofs.blob.core.windows.net/shared"
