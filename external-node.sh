@@ -14,6 +14,7 @@ declare -A MAINNET_CONFIG=(
     [name]="mainnet"
     [chain_id]="36900"
     [bridgehub_address]="0x7a38c18a229ef8a0ae7104ba272a46280f2d59cb"
+    [bytecode_supplier_address]="0x6e369e616dd5a5cb0cd410f541c784033de89042"
     [main_rpc_url]="https://rpc.adifoundation.ai"
     [replay_address]="replay.adifoundation.ai"
     [proof_storage_url]="https://adimainnet.blob.core.windows.net/proofs"
@@ -25,6 +26,7 @@ declare -A TESTNET_CONFIG=(
     [name]="testnet"
     [chain_id]="99999"
     [bridgehub_address]="0xfd3ce61c65ddd1039e6e9e07fb6d6e16388d1cc7"
+    [bytecode_supplier_address]="0x101488dfea56c4443476d29a230dcc1ab340be10"
     [main_rpc_url]="https://rpc.ab.testnet.adifoundation.ai/"
     [replay_address]="replay.ab.testnet.adifoundation.ai"
     [proof_storage_url]="https://adiproofs.blob.core.windows.net/shared"
@@ -44,6 +46,7 @@ load_network_config() {
     NETWORK_NAME="${config[name]}"
     CHAIN_ID="${config[chain_id]}"
     BRIDGEHUB_ADDRESS="${config[bridgehub_address]}"
+    BYTECODE_SUPPLIER_ADDRESS="${config[bytecode_supplier_address]}"
     MAIN_RPC_URL="${config[main_rpc_url]}"
     REPLAY_ADDRESS="${config[replay_address]}"
     DEFAULT_PROOF_STORAGE_URL="${config[proof_storage_url]}"
@@ -55,7 +58,8 @@ load_network_config() {
     SHARED_PROOF_DIR="${SHARED_PROOF_DIR:-$CHAIN_DATA_DIR/db/shared}"
 
     # Export for docker-compose
-    export NETWORK_NAME CHAIN_ID BRIDGEHUB_ADDRESS MAIN_RPC_URL REPLAY_ADDRESS
+    export NETWORK_NAME CHAIN_ID BRIDGEHUB_ADDRESS BYTECODE_SUPPLIER_ADDRESS
+    export MAIN_RPC_URL REPLAY_ADDRESS
     export CONTAINER_PREFIX CHAIN_DATA_DIR SHARED_PROOF_DIR
     export PROOF_STORAGE_URL="${PROOF_STORAGE_URL:-$DEFAULT_PROOF_STORAGE_URL}"
 }
@@ -83,6 +87,7 @@ Commands:
 
 Environment variables:
   NETWORK              Network to use: mainnet (default) or testnet.
+  EN_VERSION           External node image version tag (defaults to 'v0.12.1-b').
   PROOF_STORAGE_URL    Azure Blob URL for shared proofs (network-specific default).
   PROOF_SYNC_INTERVAL  Automatic sync interval in seconds (defaults to 60 = 1 minute).
   PROOF_SYNC_DELETE    Set to 'true' to delete local files not in Azure (defaults to false).

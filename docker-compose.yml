@@ -27,7 +27,7 @@ services:
       - zkos-net
 
   external_node:
-    image: harbor.sre.ideasoft.io/adi-chain/external-node:v0.10.1-b6
+    image: harbor.sre.ideasoft.io/adi-chain/external-node:${EN_VERSION:-v0.12.1-b}
     container_name: ${CONTAINER_PREFIX:-adi_mainnet}_external_node
     restart: unless-stopped
     working_dir: /app
@@ -35,6 +35,7 @@ services:
       - cloudflared-tcp-proxy
     environment:
       genesis_bridgehub_address: "${BRIDGEHUB_ADDRESS:-0x7a38c18a229ef8a0ae7104ba272a46280f2d59cb}"
+      genesis_bytecode_supplier_address: "${BYTECODE_SUPPLIER_ADDRESS}"
       genesis_chain_id: "${CHAIN_ID:-36900}"
       sequencer_block_replay_download_address: "cloudflared-tcp-proxy:3053"
       general_main_node_rpc_url: "${MAIN_RPC_URL:-https://rpc.adifoundation.ai}"
@@ -44,11 +45,13 @@ services:
       sequencer_block_replay_server_address: "0.0.0.0:3054"
       rpc_address: "0.0.0.0:3050"
       status_server_address: "0.0.0.0:3071"
-      general_prometheus_port: "3312"
+      observability_prometheus_port: "3312"
       general_l1_rpc_url: "${GENERAL_L1_RPC_URL}"
+      genesis_genesis_input_path: "/genesis/genesis.json"
       RUST_LOG: "info,zksync_os_server=info,zksync_os_sequencer=info,zksync_os_merkle_tree=info,zksync_os_priority_tree=info,zksync_os_server::prover_api=info"
     volumes:
       - ${CHAIN_DATA_DIR:-./mainnet_data}:/chain
+      - ./genesis/${NETWORK:-mainnet}.json:/genesis/genesis.json:ro
     ports:
       - "3050:3050"
       - "3071:3071"
