@@ -1,0 +1,65 @@
+services:
+  cloudflared-tcp-proxy:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    container_name: ${CONTAINER_PREFIX:-adi_testnet}_cloudflared_proxy
+    command: >
+      access tcp
+      --hostname ${REPLAY_ADDRESS:-replay.ab.testnet.adifoundation.ai}
+      --listener 0.0.0.0:3053
+    networks:
+      - zkos-net
+
+  proof-sync:
+    image: peterdavehello/azcopy:latest
+    container_name: ${CONTAINER_PREFIX:-adi_testnet}_proof_sync
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/sync-proofs.sh"]
+    environment:
+      PROOF_STORAGE_URL: "${PROOF_STORAGE_URL:-https://adiproofs.blob.core.windows.net/shared}"
+      SHARED_PROOF_DIR: "/chain/db/shared"
+      SYNC_INTERVAL: "${PROOF_SYNC_INTERVAL:-60}"
+      DELETE_DESTINATION: "${PROOF_SYNC_DELETE:-false}"
+    volumes:
+      - ${CHAIN_DATA_DIR:-./testnet_data}:/chain
+      - ./sync-proofs.sh:/sync-proofs.sh:ro
+    networks:
+      - zkos-net
+
+  external_node:
+    image: harbor.sre.ideasoft.io/adi-chain/external-node:${EN_VERSION:-v0.12.1-b}
+    container_name: ${CONTAINER_PREFIX:-adi_testnet}_external_node
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - cloudflared-tcp-proxy
+    environment:
+      genesis_bridgehub_address: "${BRIDGEHUB_ADDRESS:-0xfd3ce61c65ddd1039e6e9e07fb6d6e16388d1cc7}"
+      genesis_bytecode_supplier_address: "${BYTECODE_SUPPLIER_ADDRESS:-0x101488dfea56c4443476d29a230dcc1ab340be10}"
+      genesis_chain_id: "${CHAIN_ID:-99999}"
+      sequencer_block_replay_download_address: "cloudflared-tcp-proxy:3053"
+      general_main_node_rpc_url: "${MAIN_RPC_URL:-https://rpc.ab.testnet.adifoundation.ai/}"
+      general_rocks_db_path: "/chain/db/node1"
+      prover_api_object_store_file_backed_base_path: "/chain/db/shared"
+      sequencer_block_dump_path: "/chain/db/node1/block_dumps"
+      sequencer_block_replay_server_address: "0.0.0.0:3054"
+      rpc_address: "0.0.0.0:3050"
+      status_server_address: "0.0.0.0:3071"
+      observability_prometheus_port: "3312"
+      general_l1_rpc_url: "${GENERAL_L1_RPC_URL}"
+      genesis_genesis_input_path: "/genesis/genesis.json"
+      RUST_LOG: "info,zksync_os_server=info,zksync_os_sequencer=info,zksync_os_merkle_tree=info,zksync_os_priority_tree=info,zksync_os_server::prover_api=info"
+    volumes:
+      - ${CHAIN_DATA_DIR:-./testnet_data}:/chain
+      - ./genesis/testnet.json:/genesis/genesis.json:ro
+    ports:
+      - "3050:3050"
+      - "3071:3071"
+      - "3054:3054"
+      - "3312:3312"
+    networks:
+      - zkos-net
+
+networks:
+  zkos-net:
+    driver: bridge
