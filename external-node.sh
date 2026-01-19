@@ -4,32 +4,25 @@ IFS=$'\n\t'
 
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
-DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-$PROJECT_ROOT/docker-compose.yml}"
 
 # Network configuration
 NETWORK="${NETWORK:-mainnet}"
 
+# Docker compose file is set after network is determined
+# Can be overridden via DOCKER_COMPOSE_FILE env var
+DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-}"
+
 # Network-specific configurations
 declare -A MAINNET_CONFIG=(
     [name]="mainnet"
-    [chain_id]="36900"
-    [bridgehub_address]="0x7a38c18a229ef8a0ae7104ba272a46280f2d59cb"
-    [main_rpc_url]="https://rpc.adifoundation.ai"
-    [replay_address]="replay.adifoundation.ai"
-    [proof_storage_url]="https://adimainnet.blob.core.windows.net/proofs"
-    [container_prefix]="adi_mainnet"
     [data_dir]="mainnet_data"
+    [proof_storage_url]="https://adimainnet.blob.core.windows.net/proofs"
 )
 
 declare -A TESTNET_CONFIG=(
     [name]="testnet"
-    [chain_id]="99999"
-    [bridgehub_address]="0xfd3ce61c65ddd1039e6e9e07fb6d6e16388d1cc7"
-    [main_rpc_url]="https://rpc.ab.testnet.adifoundation.ai/"
-    [replay_address]="replay.ab.testnet.adifoundation.ai"
-    [proof_storage_url]="https://adiproofs.blob.core.windows.net/shared"
-    [container_prefix]="adi_testnet"
     [data_dir]="testnet_data"
+    [proof_storage_url]="https://adiproofs.blob.core.windows.net/shared"
 )
 
 # Function to load network configuration
@@ -42,25 +35,23 @@ load_network_config() {
     esac
 
     NETWORK_NAME="${config[name]}"
-    CHAIN_ID="${config[chain_id]}"
-    BRIDGEHUB_ADDRESS="${config[bridgehub_address]}"
-    MAIN_RPC_URL="${config[main_rpc_url]}"
-    REPLAY_ADDRESS="${config[replay_address]}"
-    DEFAULT_PROOF_STORAGE_URL="${config[proof_storage_url]}"
-    CONTAINER_PREFIX="${config[container_prefix]}"
     DEFAULT_DATA_DIR="${config[data_dir]}"
+    DEFAULT_PROOF_STORAGE_URL="${config[proof_storage_url]}"
 
     # Set chain data directory (can be overridden by env var)
     CHAIN_DATA_DIR="${CHAIN_DATA_DIR:-$PROJECT_ROOT/$DEFAULT_DATA_DIR}"
     SHARED_PROOF_DIR="${SHARED_PROOF_DIR:-$CHAIN_DATA_DIR/db/shared}"
 
-    # Export for docker-compose
-    export NETWORK_NAME CHAIN_ID BRIDGEHUB_ADDRESS MAIN_RPC_URL REPLAY_ADDRESS
-    export CONTAINER_PREFIX CHAIN_DATA_DIR SHARED_PROOF_DIR
-    export PROOF_STORAGE_URL="${PROOF_STORAGE_URL:-$DEFAULT_PROOF_STORAGE_URL}"
-}
+    # Set docker-compose file based on network (can be overridden by env var)
+    if [[ -z "$DOCKER_COMPOSE_FILE" ]]; then
+        DOCKER_COMPOSE_FILE="$PROJECT_ROOT/docker-compose.${NETWORK}.yml"
+    fi
 
-export DOCKER_COMPOSE_FILE
+    # Export for docker-compose (only what's needed, rest is in compose files)
+    export CHAIN_DATA_DIR SHARED_PROOF_DIR
+    export PROOF_STORAGE_URL="${PROOF_STORAGE_URL:-$DEFAULT_PROOF_STORAGE_URL}"
+    export DOCKER_COMPOSE_FILE
+}
 
 usage() {
   cat <<'EOF'
@@ -78,18 +69,23 @@ Commands:
   down       Stop and remove all containers.
   status     Show docker compose services status.
   logs       Follow logs from all containers.
-  pull       Pull the latest container images defined in docker-compose.yml.
+  pull       Pull the latest container images for the selected network.
   help       Show this help text.
 
 Environment variables:
   NETWORK              Network to use: mainnet (default) or testnet.
+  EN_VERSION           External node image version tag (network-specific default).
   PROOF_STORAGE_URL    Azure Blob URL for shared proofs (network-specific default).
   PROOF_SYNC_INTERVAL  Automatic sync interval in seconds (defaults to 60 = 1 minute).
   PROOF_SYNC_DELETE    Set to 'true' to delete local files not in Azure (defaults to false).
-  DOCKER_COMPOSE_FILE  Path to docker-compose.yml (defaults to repository file).
+  DOCKER_COMPOSE_FILE  Path to docker-compose file (defaults to docker-compose.<network>.yml).
   CHAIN_DATA_DIR       Host directory that maps to /chain inside the container.
   SHARED_PROOF_DIR     Destination for shared proofs (defaults to $CHAIN_DATA_DIR/db/shared).
   GENERAL_L1_RPC_URL   (required) L1 RPC endpoint used by the external node.
+
+Server versions:
+  Mainnet: v0.10.1-b6 (docker-compose.mainnet.yml)
+  Testnet: v0.12.1-b  (docker-compose.testnet.yml)
 
 Examples:
   # Run on mainnet (default)
