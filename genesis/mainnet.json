@@ -17,6 +17,6 @@
   "execution_version": 5,
   "genesis_root": "0xc346a158cce093e99ab65a95c884a26629d0e4f8d00ae20bbca4bfc4b204eec2",
   "l2_chain_id": 36900,
-  "l1_chain_id": 11155111,
+  "l1_chain_id": 1,
   "l1_batch_commit_data_generator_mode": "Rollup"
 }
