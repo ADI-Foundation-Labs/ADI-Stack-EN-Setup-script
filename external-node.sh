@@ -64,7 +64,7 @@ Network Selection:
 Commands:
   download   Initial/manual sync of shared proof storage from Azure Blob Storage.
              Note: When running, the proof-sync service automatically syncs new proofs.
-  start      Start the external node, proxy, and proof-sync service via docker compose.
+  start      Start the external node and proof-sync service via docker compose.
   stop       Stop the external node and all services.
   down       Stop and remove all containers.
   status     Show docker compose services status.
@@ -85,7 +85,7 @@ Environment variables:
 
 Server versions:
   Mainnet: v0.12.1-b (docker-compose.mainnet.yml)
-  Testnet: v0.12.1-b (docker-compose.testnet.yml)
+  Testnet: v0.13.0-b (docker-compose.testnet.yml)
 
 Examples:
   # Run on mainnet (default)
