@@ -85,7 +85,7 @@ Environment variables:
 
 Server versions:
   Mainnet: v0.12.1-b (docker-compose.mainnet.yml)
-  Testnet: v0.13.0-b (docker-compose.testnet.yml)
+  Testnet: v0.13.0-b1 (docker-compose.testnet.yml)
 
 Examples:
   # Run on mainnet (default)
