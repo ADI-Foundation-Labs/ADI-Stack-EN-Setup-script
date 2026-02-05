@@ -58,9 +58,7 @@ By default, the script runs on **mainnet**. To run on testnet, use the `--testne
    ```
 
    The start command prepares the data directory (and its key subdirectories).
-   Starting the stack also launches:
-   - The `cloudflared-tcp-proxy` service (mainnet only), which exposes the Cloudflare Access-protected replay endpoint on port `3053` inside the Docker network
-   - The `proof-sync` service, which automatically syncs new proofs from Azure Blob Storage every 1 minute (configurable via `PROOF_SYNC_INTERVAL`)
+   Starting the stack also launches the `proof-sync` service, which automatically syncs new proofs from Azure Blob Storage every 1 minute (configurable via `PROOF_SYNC_INTERVAL`).
 
 ## Additional Commands
 

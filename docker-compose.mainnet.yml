@@ -1,15 +1,4 @@
 services:
-  cloudflared-tcp-proxy:
-    image: cloudflare/cloudflared:latest
-    restart: unless-stopped
-    container_name: ${CONTAINER_PREFIX:-adi_mainnet}_cloudflared_proxy
-    command: >
-      access tcp
-      --hostname ${REPLAY_ADDRESS:-replay.adifoundation.ai}
-      --listener 0.0.0.0:3053
-    networks:
-      - zkos-net
-
   proof-sync:
     image: peterdavehello/azcopy:latest
     container_name: ${CONTAINER_PREFIX:-adi_mainnet}_proof_sync
@@ -27,17 +16,15 @@ services:
       - zkos-net
 
   external_node:
-    image: harbor.sre.ideasoft.io/adi-chain/external-node:${EN_VERSION:-v0.12.1-b}
+    image: harbor.sre.ideasoft.io/adi-chain/external-node:${EN_VERSION:-v0.13.0-b1}
     container_name: ${CONTAINER_PREFIX:-adi_mainnet}_external_node
     restart: unless-stopped
     working_dir: /app
-    depends_on:
-      - cloudflared-tcp-proxy
     environment:
       genesis_bridgehub_address: "${BRIDGEHUB_ADDRESS:-0x7a38c18a229ef8a0ae7104ba272a46280f2d59cb}"
       genesis_bytecode_supplier_address: "${BYTECODE_SUPPLIER_ADDRESS:-0x6e369e616dd5a5cb0cd410f541c784033de89042}"
       genesis_chain_id: "${CHAIN_ID:-36900}"
-      sequencer_block_replay_download_address: "cloudflared-tcp-proxy:3053"
+      sequencer_block_replay_download_address: "https://replay.adifoundation.ai"
       general_main_node_rpc_url: "${MAIN_RPC_URL:-https://rpc.adifoundation.ai}"
       general_rocks_db_path: "/chain/db/node1"
       prover_api_object_store_file_backed_base_path: "/chain/db/shared"
