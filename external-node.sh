@@ -84,7 +84,7 @@ Environment variables:
   GENERAL_L1_RPC_URL   (required) L1 RPC endpoint used by the external node.
 
 Server versions:
-  Mainnet: v0.12.1-b (docker-compose.mainnet.yml)
+  Mainnet: v0.13.0-b1 (docker-compose.mainnet.yml)
   Testnet: v0.13.0-b1 (docker-compose.testnet.yml)
 
 Examples:
