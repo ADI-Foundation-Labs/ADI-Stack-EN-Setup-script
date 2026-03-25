@@ -16,7 +16,7 @@ services:
       - zkos-net
 
   external_node:
-    image: harbor.sde.adifoundation.ai/adi-public/chain/external-node:${EN_VERSION:-v0.13.0-b4}
+    image: ghcr.io/adi-foundation-labs/server:${EN_VERSION:-v0.20.12-b1}
     container_name: ${CONTAINER_PREFIX:-adi_testnet}_external_node
     restart: unless-stopped
     working_dir: /app
@@ -24,17 +24,19 @@ services:
       genesis_bridgehub_address: "${BRIDGEHUB_ADDRESS:-0xfd3ce61c65ddd1039e6e9e07fb6d6e16388d1cc7}"
       genesis_bytecode_supplier_address: "${BYTECODE_SUPPLIER_ADDRESS:-0x101488dfea56c4443476d29a230dcc1ab340be10}"
       genesis_chain_id: "${CHAIN_ID:-99999}"
-      sequencer_block_replay_download_address: "https://replay.ab.testnet.adifoundation.ai"
       general_main_node_rpc_url: "${MAIN_RPC_URL:-https://rpc.ab.testnet.adifoundation.ai/}"
       general_rocks_db_path: "/chain/db/node1"
       prover_api_object_store_file_backed_base_path: "/chain/db/shared"
       sequencer_block_dump_path: "/chain/db/node1/block_dumps"
-      sequencer_block_replay_server_address: "0.0.0.0:3054"
       rpc_address: "0.0.0.0:3050"
       status_server_address: "0.0.0.0:3071"
       observability_prometheus_port: "3312"
       general_l1_rpc_url: "${GENERAL_L1_RPC_URL}"
       genesis_genesis_input_path: "/genesis/genesis.json"
+      general_node_role: "external"
+      network_enabled: "true"
+      network_secret_key: "${EXTERNAL_NETWORK_SECRET_KEY}"
+      network_boot_nodes: "${BOOT_NODE_URLS}"
       RUST_LOG: "info,zksync_os_server=info,zksync_os_sequencer=info,zksync_os_merkle_tree=info,zksync_os_priority_tree=info,zksync_os_server::prover_api=info"
     volumes:
       - ${CHAIN_DATA_DIR:-./testnet_data}:/chain

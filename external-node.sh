@@ -73,16 +73,26 @@ Commands:
   help       Show this help text.
 
 Environment variables:
-  NETWORK              Network to use: mainnet (default) or testnet.
-  EN_VERSION           External node image version tag (network-specific default).
-  PROOF_STORAGE_URL    Azure Blob URL for shared proofs (network-specific default).
-  PROOF_SYNC_INTERVAL  Automatic sync interval in seconds (defaults to 60 = 1 minute).
-  PROOF_SYNC_DELETE    Set to 'true' to delete local files not in Azure (defaults to false).
-  DOCKER_COMPOSE_FILE  Path to docker-compose file (defaults to docker-compose.<network>.yml).
-  CHAIN_DATA_DIR       Host directory that maps to /chain inside the container.
-  SHARED_PROOF_DIR     Destination for shared proofs (defaults to $CHAIN_DATA_DIR/db/shared).
-  GENERAL_L1_RPC_URL   (required) L1 RPC endpoint used by the external node.
-
+NETWORK                     Network to use: mainnet (default) or testnet.
+                            Determines which configuration, endpoints and docker-compose file are used.
+EN_VERSION                  External node image version tag (network-specific default).
+                            Overrides the Docker image version of the external node.
+PROOF_STORAGE_URL           Azure Blob URL for shared proofs (network-specific default).
+                            Remote storage used to download zk-proofs required for node operation.
+PROOF_SYNC_INTERVAL         Automatic sync interval in seconds (defaults to 60 = 1 minute).
+                            How often the proof-sync service checks for new proofs in storage.
+PROOF_SYNC_DELETE           Set to 'true' to delete local files not in Azure (defaults to false).
+                            Useful to keep local storage clean and consistent with remote.
+DOCKER_COMPOSE_FILE         Path to docker-compose file (defaults to docker-compose.<network>.yml).
+                            Allows overriding the default compose file per network.
+CHAIN_DATA_DIR              Host directory that maps to /chain inside the container.
+                            Stores blockchain data, state, and proofs on the host machine.
+SHARED_PROOF_DIR            Destination for shared proofs (defaults to $CHAIN_DATA_DIR/db/shared).
+                            Local directory where downloaded proofs are stored.
+GENERAL_L1_RPC_URL          (required) L1 RPC endpoint used by the external node.
+                            Must be a full Ethereum-compatible RPC (e.g. Infura, Alchemy, or self-hosted).
+EXTERNAL_NETWORK_SECRET_KEY (required) Private key used to identify and authenticate the external node in the network.
+BOOT_NODE_URLS              (required) Comma-separated list of bootnode ENRs used for peer discovery in the network.
 Server versions:
   Mainnet: v0.13.0-b4 (docker-compose.mainnet.yml)
   Testnet: v0.13.0-b4 (docker-compose.testnet.yml)
@@ -213,6 +223,8 @@ ensure_container_dir() {
 
 start_node() {
   local l1_rpc_url="${GENERAL_L1_RPC_URL:-}"
+  local boot_node_urls="${BOOT_NODE_URLS:-}"
+  local external_network_secret_key="${EXTERNAL_NETWORK_SECRET_KEY:-}"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -221,12 +233,24 @@ start_node() {
         l1_rpc_url="$2"
         shift 2
         ;;
+      --boot-node-urls)
+        [[ $# -ge 2 ]] || fatal "Missing value for $1."
+        boot_node_urls="$2"
+        shift 2
+        ;;
+      --external-network-secret-key)
+        [[ $# -ge 2 ]] || fatal "Missing value for $1."
+        external_network_secret_key="$2"
+        shift 2
+        ;;
       -h|--help)
         cat <<'EOF'
 Usage: external-node.sh start [--l1-rpc-url <url>]
 
 Options:
-  --l1-rpc-url, -u  Provide the required L1 RPC URL (alternatively set GENERAL_L1_RPC_URL).
+  --l1-rpc-url, -u               Provide the required L1 RPC URL (alternatively set GENERAL_L1_RPC_URL).
+  --boot-node-url                Provide the required boot node URL (alternatively set BOOT_NODE_URLS).
+  --external-network-secret-key  Provide the required external network secret key (alternatively set EXTERNAL_NETWORK_SECRET_KEY).
 EOF
         return 0
         ;;
@@ -237,6 +261,8 @@ EOF
   done
 
   [[ -n "$l1_rpc_url" ]] || fatal "L1 RPC URL is required. Use --l1-rpc-url or set GENERAL_L1_RPC_URL."
+  [[ -n "$boot_node_urls" ]] || fatal "BOOT NODE URL is required. Use --boot-node-url or set BOOT_NODE_URLS."
+  [[ -n "$external_network_secret_key" ]] || fatal "EXTERNAL_NETWORK_SECRET_KEY is required. Use --external-network-secret-key or set EXTERNAL_NETWORK_SECRET_KEY."
 
   ensure_container_dir "$CHAIN_DATA_DIR"
   ensure_container_dir "$CHAIN_DATA_DIR/db"
@@ -245,7 +271,11 @@ EOF
   ensure_container_dir "$SHARED_PROOF_DIR"
 
   GENERAL_L1_RPC_URL="$l1_rpc_url"
+  BOOT_NODE_URLS="$boot_node_urls"
+  EXTERNAL_NETWORK_SECRET_KEY="$external_network_secret_key"
   export GENERAL_L1_RPC_URL
+  export BOOT_NODE_URLS
+  export EXTERNAL_NETWORK_SECRET_KEY
   log "Starting ADI external node on $NETWORK_NAME (L1 RPC URL configured)."
   log "Data directory: $CHAIN_DATA_DIR"
   compose up -d

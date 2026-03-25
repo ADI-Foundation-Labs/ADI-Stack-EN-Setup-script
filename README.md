@@ -44,6 +44,8 @@ By default, the script runs on **mainnet**. To run on testnet, use the `--testne
 
    ```bash
    export GENERAL_L1_RPC_URL="https://your-l1-endpoint"
+   export BOOT_NODE_URLS="enode://..."
+   export EXTERNAL_NETWORK_SECRET_KEY="your-private-key"
    ```
 
 3. Start the external node (or pass the URL directly):
@@ -51,10 +53,14 @@ By default, the script runs on **mainnet**. To run on testnet, use the `--testne
    ```bash
    # Mainnet
    ./external-node.sh start
-   ./external-node.sh start --l1-rpc-url https://{RPC}
+   ./external-node.sh start --l1-rpc-url https://{RPC} \
+     --boot-node-urls enode://... \
+     --external-network-secret-key your-private-key
 
    # Testnet
-   ./external-node.sh --testnet start --l1-rpc-url https://{RPC}
+   ./external-node.sh --testnet start --l1-rpc-url https://{RPC} \
+     --boot-node-urls enode://... \
+     --external-network-secret-key your-private-key
    ```
 
    The start command prepares the data directory (and its key subdirectories).
@@ -76,6 +82,65 @@ All commands support the `--testnet` flag for testnet operation:
 
 Set `CHAIN_DATA_DIR`, `SHARED_PROOF_DIR`, or `DOCKER_COMPOSE_FILE` to override defaults if your layout differs from this repository.
 The `start` command requires `GENERAL_L1_RPC_URL`; prefix the command with `GENERAL_L1_RPC_URL=...` if you prefer not to export it permanently.
+
+## Network Identity Setup
+
+To run an external node, you need to generate a private key, derive its public key, and configure boot nodes.
+
+1. Generate EXTERNAL_NETWORK_SECRET_KEY
+   Generate a secure random private key:
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+   Example output:
+
+   ```bash
+   4f3c2a... (64 hex characters)
+   ```
+
+   Set it:
+
+   ```bash
+   export EXTERNAL_NETWORK_SECRET_KEY=<your-private-key>
+   ```
+
+2. Derive the public key:
+
+   To get the public key:
+
+   ```bash
+   cast wallet public-key --private-key <private-key>
+   ```
+   Example output:
+   ```bash
+   0x04abcd...
+   ```
+   ⚠️ Remove the 0x prefix before using it in BOOT_NODE_URLS.
+3. Configure boot nodes:
+
+   Boot nodes are used for peer discovery. Format:
+   ```bash
+   enode://{public-key}@{ip-address-or-host}:{port}
+   ```
+   - public-key — without 0x
+   - ip-address-or-host — public node address
+   - port — default: 3060
+
+   Example:
+   ```bash
+   export BOOT_NODE_URLS="enode://abcd1234...@1.2.3.4:3060"
+   ```
+   You can provide multiple boot nodes (comma-separated):
+   ```bash
+   export BOOT_NODE_URLS="enode://key1@host1:3060,enode://key2@host2:3060"
+   ```
+
+   Notes:
+   - Keep your EXTERNAL_NETWORK_SECRET_KEY private — it identifies your node in the network.
+   - The public key is derived from the private key and is safe to share.
+   - Ensure your node is reachable on the specified port (default 3060) if acting as a boot node.
 
 ## Automatic Proof Synchronization
 
