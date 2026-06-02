@@ -76,8 +76,8 @@ CHAIN_DATA_DIR              Host directory that maps to /chain inside the contai
                             Stores blockchain data and state on the host machine.
 GENERAL_L1_RPC_URL          (required) L1 RPC endpoint used by the external node.
                             Must be a full Ethereum-compatible RPC (e.g. Infura, Alchemy, or self-hosted).
-EXTERNAL_NETWORK_SECRET_KEY (required) Private key used to identify and authenticate the external node in the P2P network.
-                            Generate with: openssl rand -hex 32
+EXTERNAL_NETWORK_SECRET_KEY Private key used to identify and authenticate the external node in the P2P network.
+                            Auto-generated if not set. Reuse the same key on restarts to keep your P2P node identity.
 BOOT_NODE_URLS              (required) Comma-separated list of bootnode enode URLs used for P2P peer discovery.
 Server versions:
   Mainnet: v0.20.12-b1 (docker-compose.mainnet.yml)
@@ -151,7 +151,8 @@ Usage: external-node.sh start [--l1-rpc-url <url>]
 Options:
   --l1-rpc-url, -u               Provide the required L1 RPC URL (alternatively set GENERAL_L1_RPC_URL).
   --boot-node-url                Provide the required boot node URL (alternatively set BOOT_NODE_URLS).
-  --external-network-secret-key  Provide the required external network secret key (alternatively set EXTERNAL_NETWORK_SECRET_KEY).
+  --external-network-secret-key  Provide the external network secret key (alternatively set EXTERNAL_NETWORK_SECRET_KEY).
+                                 Auto-generated if omitted; save the printed value for reuse.
 EOF
         return 0
         ;;
@@ -163,7 +164,11 @@ EOF
 
   [[ -n "$l1_rpc_url" ]] || fatal "L1 RPC URL is required. Use --l1-rpc-url or set GENERAL_L1_RPC_URL."
   [[ -n "$boot_node_urls" ]] || fatal "BOOT NODE URL is required. Use --boot-node-url or set BOOT_NODE_URLS."
-  [[ -n "$external_network_secret_key" ]] || fatal "EXTERNAL_NETWORK_SECRET_KEY is required. Use --external-network-secret-key or set EXTERNAL_NETWORK_SECRET_KEY."
+  if [[ -z "$external_network_secret_key" ]]; then
+    external_network_secret_key="$(openssl rand -hex 32)"
+    log "EXTERNAL_NETWORK_SECRET_KEY not provided — generated automatically: $external_network_secret_key"
+    log "Save this key and reuse it on restarts to keep your P2P node identity stable."
+  fi
 
   ensure_container_dir "$CHAIN_DATA_DIR"
   ensure_container_dir "$CHAIN_DATA_DIR/db"
