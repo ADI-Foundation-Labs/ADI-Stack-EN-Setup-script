@@ -146,5 +146,4 @@ Ensure port `3060` is open for both TCP and UDP inbound traffic.
 For version-specific upgrade instructions, see the [upgrades](./upgrades/) directory:
 
 - [v0.8.4 → v0.10.0](./upgrades/v0.8.4_to_v0.10.0.md) — **Breaking upgrade** requiring full chain resync
-- [v0.10.0 → v0.17.1](./upgrades/v0.10.0_to_v0.17.1.md) — Adds P2P network identity
 - [v0.10.0 → v0.19.0](./upgrades/v0.10.0_to_v0.19.0.md) — P2P replaces HTTP replay, proof-sync removed
