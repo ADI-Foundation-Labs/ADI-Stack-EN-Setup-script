@@ -12,15 +12,21 @@ NETWORK="${NETWORK:-mainnet}"
 # Can be overridden via DOCKER_COMPOSE_FILE env var
 DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-}"
 
+# Default boot node URLs per network (can be overridden via --boot-node-urls or BOOT_NODE_URLS)
+MAINNET_DEFAULT_BOOT_NODES="enode://<pubkey>@<host>:3060"
+TESTNET_DEFAULT_BOOT_NODES="enode://<pubkey>@<host>:3060"
+
 # Network-specific configurations
 declare -A MAINNET_CONFIG=(
     [name]="mainnet"
     [data_dir]="mainnet_data"
+    [boot_nodes]="$MAINNET_DEFAULT_BOOT_NODES"
 )
 
 declare -A TESTNET_CONFIG=(
     [name]="testnet"
     [data_dir]="testnet_data"
+    [boot_nodes]="$TESTNET_DEFAULT_BOOT_NODES"
 )
 
 # Function to load network configuration
@@ -34,6 +40,7 @@ load_network_config() {
 
     NETWORK_NAME="${config[name]}"
     DEFAULT_DATA_DIR="${config[data_dir]}"
+    DEFAULT_BOOT_NODE_URLS="${config[boot_nodes]}"
 
     # Set chain data directory (can be overridden by env var)
     CHAIN_DATA_DIR="${CHAIN_DATA_DIR:-$PROJECT_ROOT/$DEFAULT_DATA_DIR}"
@@ -78,7 +85,8 @@ GENERAL_L1_RPC_URL          (required) L1 RPC endpoint used by the external node
                             Must be a full Ethereum-compatible RPC (e.g. Infura, Alchemy, or self-hosted).
 EXTERNAL_NETWORK_SECRET_KEY Private key used to identify and authenticate the external node in the P2P network.
                             Auto-generated if not set. Reuse the same key on restarts to keep your P2P node identity.
-BOOT_NODE_URLS              (required) Comma-separated list of bootnode enode URLs used for P2P peer discovery.
+BOOT_NODE_URLS              Comma-separated list of bootnode enode URLs used for P2P peer discovery.
+                            Falls back to a hardcoded default for the selected network if not set.
 Server versions:
   Mainnet: v0.20.12-b1 (docker-compose.mainnet.yml)
   Testnet: v0.20.12-b1 (docker-compose.testnet.yml)
@@ -150,7 +158,8 @@ Usage: external-node.sh start [--l1-rpc-url <url>]
 
 Options:
   --l1-rpc-url, -u               Provide the required L1 RPC URL (alternatively set GENERAL_L1_RPC_URL).
-  --boot-node-url                Provide the required boot node URL (alternatively set BOOT_NODE_URLS).
+  --boot-node-urls               Override the boot node URLs (alternatively set BOOT_NODE_URLS).
+                                 Falls back to the hardcoded default for the selected network if omitted.
   --external-network-secret-key  Provide the external network secret key (alternatively set EXTERNAL_NETWORK_SECRET_KEY).
                                  Auto-generated if omitted; save the printed value for reuse.
 EOF
@@ -163,7 +172,10 @@ EOF
   done
 
   [[ -n "$l1_rpc_url" ]] || fatal "L1 RPC URL is required. Use --l1-rpc-url or set GENERAL_L1_RPC_URL."
-  [[ -n "$boot_node_urls" ]] || fatal "BOOT NODE URL is required. Use --boot-node-url or set BOOT_NODE_URLS."
+  if [[ -z "$boot_node_urls" ]]; then
+    boot_node_urls="$DEFAULT_BOOT_NODE_URLS"
+    log "BOOT_NODE_URLS not provided — using default for $NETWORK_NAME: $boot_node_urls"
+  fi
   if [[ -z "$external_network_secret_key" ]]; then
     external_network_secret_key="$(openssl rand -hex 32)"
     log "EXTERNAL_NETWORK_SECRET_KEY not provided — generated automatically: $external_network_secret_key"
