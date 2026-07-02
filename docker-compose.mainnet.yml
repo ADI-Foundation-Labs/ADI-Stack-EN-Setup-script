@@ -16,7 +16,7 @@ services:
       - zkos-net
 
   external_node:
-    image: harbor.sde.adifoundation.ai/adi-public/chain/external-node:${EN_VERSION:-v0.13.0-b2}
+    image: harbor.sde.adifoundation.ai/adi-public/chain/external-node:${EN_VERSION:-v0.13.0-b4}
     container_name: ${CONTAINER_PREFIX:-adi_mainnet}_external_node
     restart: unless-stopped
     working_dir: /app
