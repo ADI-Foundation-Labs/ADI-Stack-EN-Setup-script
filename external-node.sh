@@ -15,6 +15,7 @@ DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-}"
 # Default boot node URLs per network (can be overridden via --boot-node-urls or BOOT_NODE_URLS)
 MAINNET_DEFAULT_BOOT_NODES="enode://<pubkey>@<host>:3060"
 TESTNET_DEFAULT_BOOT_NODES="enode://<pubkey>@<host>:3060"
+DEVNET_DEFAULT_BOOT_NODES="enode://0x92c5f671dd80c87890c05a1aea5175d3473469acad922e926b6aba9246ee3e801a892d9d8e76d2d272c9d3b2c081f23c379434d0a40a3b27549d2cf9f706fbfb@20.216.31.107:3060"
 
 # Network-specific configurations
 declare -A MAINNET_CONFIG=(
@@ -29,13 +30,20 @@ declare -A TESTNET_CONFIG=(
     [boot_nodes]="$TESTNET_DEFAULT_BOOT_NODES"
 )
 
+declare -A DEVNET_CONFIG=(
+    [name]="devnet"
+    [data_dir]="devnet_data"
+    [boot_nodes]="$DEVNET_DEFAULT_BOOT_NODES"
+)
+
 # Function to load network configuration
 load_network_config() {
     local -n config
     case "$NETWORK" in
         mainnet) config=MAINNET_CONFIG ;;
         testnet) config=TESTNET_CONFIG ;;
-        *) fatal "Unknown network: $NETWORK. Supported: mainnet, testnet" ;;
+        devnet) config=DEVNET_CONFIG ;;
+        *) fatal "Unknown network: $NETWORK. Supported: mainnet, testnet, devnet" ;;
     esac
 
     NETWORK_NAME="${config[name]}"
@@ -57,11 +65,12 @@ load_network_config() {
 
 usage() {
   cat <<'EOF'
-Usage: external-node.sh [--testnet] <command> [options]
+Usage: external-node.sh [--testnet|--devnet] <command> [options]
 
 Network Selection:
   --testnet            Use testnet configuration (default: mainnet)
-  --network <name>     Select network explicitly (mainnet or testnet)
+  --devnet             Use devnet configuration (default: mainnet)
+  --network <name>     Select network explicitly (mainnet, testnet, or devnet)
 
 Commands:
   start      Start the external node via docker compose.
@@ -73,7 +82,7 @@ Commands:
   help       Show this help text.
 
 Environment variables:
-NETWORK                     Network to use: mainnet (default) or testnet.
+NETWORK                     Network to use: mainnet (default), testnet, or devnet.
                             Determines which configuration, endpoints and docker-compose file are used.
 EN_VERSION                  External node image version tag (network-specific default).
                             Overrides the Docker image version of the external node.
@@ -90,6 +99,7 @@ BOOT_NODE_URLS              Comma-separated list of bootnode enode URLs used for
 Server versions:
   Mainnet: v0.20.12-b1 (docker-compose.mainnet.yml)
   Testnet: v0.20.12-b1 (docker-compose.testnet.yml)
+  Devnet:  v0.20.12-b1 (docker-compose.devnet.yml)
 
 Examples:
   # Run on mainnet (default)
@@ -97,6 +107,9 @@ Examples:
 
   # Run on testnet
   ./external-node.sh --testnet start --l1-rpc-url https://eth-sepolia.example.com
+
+  # Run on devnet
+  ./external-node.sh --devnet start --l1-rpc-url https://eth-sepolia.example.com
 EOF
 }
 
@@ -112,6 +125,12 @@ fatal() {
 compose() {
   [[ -n "${CHAIN_DATA_DIR:-}" ]] || fatal "CHAIN_DATA_DIR must be set."
   export CHAIN_DATA_DIR
+
+  # Avoid "variable is not set" warnings from docker compose for commands
+  # (stop, down, status, logs, pull) that don't go through start_node.
+  export GENERAL_L1_RPC_URL="${GENERAL_L1_RPC_URL:-}"
+  export EXTERNAL_NETWORK_SECRET_KEY="${EXTERNAL_NETWORK_SECRET_KEY:-}"
+  export BOOT_NODE_URLS="${BOOT_NODE_URLS:-}"
 
   if docker compose version >/dev/null 2>&1; then
     docker compose -f "$DOCKER_COMPOSE_FILE" "$@"
@@ -227,6 +246,10 @@ main() {
     case "$1" in
       --testnet)
         NETWORK="testnet"
+        shift
+        ;;
+      --devnet)
+        NETWORK="devnet"
         shift
         ;;
       --network)
