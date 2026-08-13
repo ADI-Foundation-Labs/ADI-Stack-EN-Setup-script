@@ -118,7 +118,7 @@ Boot nodes are used for initial peer discovery. If you don't provide `BOOT_NODE_
 enode://<public-key>@<ip-or-host>:<port>
 ```
 
-- `public-key` — 128 hex chars, no `0x` prefix
+- `public-key` — 128 hex chars; a `0x` prefix (as printed by `cast wallet public-key`) is fine and doesn't need to be stripped
 - `ip-or-host` — publicly reachable address of the boot node
 - `port` — default `3060`
 

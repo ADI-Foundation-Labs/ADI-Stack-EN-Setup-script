@@ -8,7 +8,7 @@ services:
       genesis_bridgehub_address: "${BRIDGEHUB_ADDRESS:-0x64140030aD9FE756147665a81cAdB3502565d8E1}"
       genesis_bytecode_supplier_address: "${BYTECODE_SUPPLIER_ADDRESS:-0x40CE5C2f96a0487273cc6983E60aEBed092c10Be}"
       genesis_chain_id: "${CHAIN_ID:-99985}"
-      general_main_node_rpc_url: "${MAIN_RPC_URL:-https://rpc-devnet6.dev.internal.adifoundation.ai/}"
+      general_main_node_rpc_url: "${MAIN_RPC_URL:-https://rpc-devnet6.adifoundation.ai/}"
       general_rocks_db_path: "/chain/db/node1"
       sequencer_block_dump_path: "/chain/db/node1/block_dumps"
       rpc_address: "0.0.0.0:3050"
