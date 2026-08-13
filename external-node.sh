@@ -20,12 +20,16 @@ DEVNET_DEFAULT_BOOT_NODES="enode://0x92c5f671dd80c87890c05a1aea5175d3473469acad9
 declare -A MAINNET_CONFIG=(
     [name]="mainnet"
     [data_dir]="mainnet_data"
+    [proof_storage_url]="https://adimainnet.blob.core.windows.net/proofs"
+    [proof_sync_enabled]="true"
     [p2p_enabled]="false"
 )
 
 declare -A TESTNET_CONFIG=(
     [name]="testnet"
     [data_dir]="testnet_data"
+    [proof_storage_url]="https://adiproofs.blob.core.windows.net/shared"
+    [proof_sync_enabled]="true"
     [p2p_enabled]="false"
 )
 
@@ -48,11 +52,14 @@ load_network_config() {
 
     NETWORK_NAME="${config[name]}"
     DEFAULT_DATA_DIR="${config[data_dir]}"
+    DEFAULT_PROOF_STORAGE_URL="${config[proof_storage_url]:-}"
+    PROOF_SYNC_ENABLED="${config[proof_sync_enabled]:-false}"
     P2P_ENABLED="${config[p2p_enabled]}"
     DEFAULT_BOOT_NODE_URLS="${config[boot_nodes]:-}"
 
     # Set chain data directory (can be overridden by env var)
     CHAIN_DATA_DIR="${CHAIN_DATA_DIR:-$PROJECT_ROOT/$DEFAULT_DATA_DIR}"
+    SHARED_PROOF_DIR="${SHARED_PROOF_DIR:-$CHAIN_DATA_DIR/db/shared}"
 
     # Set docker-compose file based on network (can be overridden by env var)
     if [[ -z "$DOCKER_COMPOSE_FILE" ]]; then
@@ -60,6 +67,8 @@ load_network_config() {
     fi
 
     # Export for docker-compose (only what's needed, rest is in compose files)
+    export CHAIN_DATA_DIR SHARED_PROOF_DIR
+    export PROOF_STORAGE_URL="${PROOF_STORAGE_URL:-$DEFAULT_PROOF_STORAGE_URL}"
     export CHAIN_DATA_DIR
     export DOCKER_COMPOSE_FILE
 }
@@ -74,6 +83,9 @@ Network Selection:
   --network <name>     Select network explicitly (mainnet, testnet, or devnet)
 
 Commands:
+  download   Mainnet/testnet only. Initial/manual sync of shared proof storage from Azure Blob Storage.
+             Note: When running, the proof-sync service automatically syncs new proofs.
+             Not available on devnet — it doesn't use proof-sync (P2P networking instead).
   start      Start the external node via docker compose.
   stop       Stop the external node and all services.
   down       Stop and remove all containers.
@@ -87,6 +99,9 @@ NETWORK                     Network to use: mainnet (default), testnet, or devne
                             Determines which configuration, endpoints and docker-compose file are used.
 EN_VERSION                  External node image version tag (network-specific default).
                             Overrides the Docker image version of the external node.
+PROOF_STORAGE_URL           Azure Blob URL for shared proofs (network-specific default).
+PROOF_SYNC_INTERVAL         Automatic sync interval in seconds (defaults to 60 = 1 minute).
+PROOF_SYNC_DELETE           Set to 'true' to delete local files not in Azure (defaults to false)
 DOCKER_COMPOSE_FILE         Path to docker-compose file (defaults to docker-compose.<network>.yml).
                             Allows overriding the default compose file per network.
 CHAIN_DATA_DIR              Host directory that maps to /chain inside the container.
@@ -128,6 +143,14 @@ fatal() {
   exit 1
 }
 
+require_command() {
+  local binary="$1"
+  shift || true
+  if ! command -v "$binary" >/dev/null 2>&1; then
+    fatal "${*:-Command '$binary' is required but was not found in PATH.}"
+  fi
+}
+
 compose() {
   [[ -n "${CHAIN_DATA_DIR:-}" ]] || fatal "CHAIN_DATA_DIR must be set."
   export CHAIN_DATA_DIR
@@ -145,6 +168,85 @@ compose() {
   else
     fatal "docker compose plugin (Docker 20.10+) or docker-compose is required."
   fi
+}
+
+download_shared() {
+  local destination="$SHARED_PROOF_DIR"
+  local source="$PROOF_STORAGE_URL"
+  local delete_destination="false"
+  local verbose="false"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -d|--destination)
+        [[ $# -ge 2 ]] || fatal "Missing value for $1."
+        destination="$2"
+        shift 2
+        ;;
+      -s|--source)
+        [[ $# -ge 2 ]] || fatal "Missing value for $1."
+        source="$2"
+        shift 2
+        ;;
+      -f|--force)
+        delete_destination="true"
+        shift
+        ;;
+      -v|--verbose)
+        verbose="true"
+        shift
+        ;;
+      -h|--help)
+        cat <<'EOF'
+Usage: external-node.sh download [--source <azure-sas-url>] [--destination <dir>] [--force]
+
+Initial/manual sync of shared proof storage from Azure Blob Storage.
+
+Note: When the node is running, the proof-sync sidecar service automatically
+      syncs new proofs every PROOF_SYNC_INTERVAL seconds. This command is primarily
+      for initial setup or manual synchronization.
+
+Options:
+  --source, -s       Azure Blob SAS URL to copy from (defaults to PROOF_STORAGE_URL or the adi snapshot).
+  --destination, -d  Directory to store shared proofs (defaults to SHARED_PROOF_DIR).
+  --force, -f        Force destination to match source (enables deletion of local files missing in source).
+  --verbose, -v      Emit azcopy progress logs.
+EOF
+        return 0
+        ;;
+      *)
+        fatal "Unknown download option: $1"
+        ;;
+    esac
+  done
+
+  [[ "$PROOF_SYNC_ENABLED" == "true" ]] || fatal "download is not supported on $NETWORK_NAME — it doesn't use proof-sync/shared proof storage."
+
+  [[ -n "$source" ]] || fatal "No Azure source provided. Use --source or set PROOF_STORAGE_URL."
+
+  require_command azcopy "azcopy is required for downloading from Azure Blob Storage."
+
+  log "Downloading proofs for $NETWORK_NAME network..."
+  mkdir -p "$destination"
+  if [[ -n "${CHAIN_DATA_DIR:-}" && "$destination" == "$CHAIN_DATA_DIR"* ]]; then
+    local parent_dir
+    parent_dir="$(dirname "$destination")"
+    chmod 0777 "$destination" >/dev/null 2>&1 || true
+    if [[ "$parent_dir" == "$CHAIN_DATA_DIR"* ]]; then
+      chmod 0777 "$parent_dir" >/dev/null 2>&1 || true
+    fi
+  fi
+  log "Syncing shared proofs from $source to $destination"
+
+  local azcopy_args=("sync" "$source" "$destination" "--recursive" "--delete-destination=$delete_destination")
+  if [[ "$verbose" == "true" ]]; then
+    azcopy_args+=("--log-level=WARN")
+  else
+    azcopy_args+=("--log-level=INFO")
+  fi
+
+  azcopy "${azcopy_args[@]}"
+  log "Sync completed."
 }
 
 ensure_container_dir() {
@@ -283,6 +385,7 @@ main() {
   shift || true
 
   case "$command" in
+    download) download_shared "$@" ;;
     start) start_node "$@" ;;
     stop) stop_node ;;
     down) down_node ;;
