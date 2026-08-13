@@ -1,15 +1,16 @@
 # ADI External Node
 
-Helper scripts and configuration for running an ADI external node on **mainnet** or **testnet**.
+Helper scripts and configuration for running an ADI external node on **mainnet**, **testnet**, or **devnet**.
+
+> **🚧 Upgrade in progress:** `devnet` now runs **v0.20.12** with P2P networking (see [Upgrades](#upgrades)). `mainnet` and `testnet` remain on **v0.13.0** for now — each network is upgraded separately, in its own branch. Watch this repo for updates.
 
 ## Prerequisites
 
 - Docker Engine with the `docker compose` plugin (or the legacy `docker-compose` binary).
-- [`azcopy`](https://learn.microsoft.com/azure/storage/common/storage-use-azcopy-v10) installed locally for downloading the shared proofs snapshot.
 
 ## Network Selection
 
-By default, the script runs on **mainnet**. To run on testnet, use the `--testnet` flag:
+By default, the script runs on **mainnet**. To run on testnet or devnet, use the `--testnet` or `--devnet` flag:
 
 ```bash
 # Mainnet (default)
@@ -17,55 +18,61 @@ By default, the script runs on **mainnet**. To run on testnet, use the `--testne
 
 # Testnet
 ./external-node.sh --testnet start --l1-rpc-url https://your-l1-endpoint
+
+# Devnet
+./external-node.sh --devnet start --l1-rpc-url https://your-l1-endpoint
 ```
 
 ### Network Configuration
 
-| Network | Main RPC | Proof Storage | Data Directory |
-|---------|----------|---------------|----------------|
-| Mainnet | `https://rpc.adifoundation.ai` | `https://adimainnet.blob.core.windows.net/proofs` | `./mainnet_data` |
-| Testnet | `https://rpc.ab.testnet.adifoundation.ai` | `https://adiproofs.blob.core.windows.net/shared` | `./testnet_data` |
+| Network | Version           | Main RPC                                             | Data Directory   |
+|---------|-------------------|------------------------------------------------------|------------------|
+| Mainnet | v0.13.0-b4        | `https://rpc.adifoundation.ai`                       | `./mainnet_data` |
+| Testnet | v0.13.0-b4        | `https://rpc.ab.testnet.adifoundation.ai`            | `./testnet_data` |
+| Devnet  | v0.20.12-b1 (P2P) | `https://rpc-devnet6.dev.internal.adifoundation.ai/` | `./devnet_data`  |
 
 ## Usage
 
-1. Sync the shared proof storage:
+`--l1-rpc-url` (or `GENERAL_L1_RPC_URL`) is the only value you need to provide, on any network:
 
-   ```bash
-   # Mainnet
-   ./external-node.sh download
+```bash
+# Mainnet
+./external-node.sh start --l1-rpc-url https://your-l1-endpoint
 
-   # Testnet
-   ./external-node.sh --testnet download
-   ```
+# Testnet
+./external-node.sh --testnet start --l1-rpc-url https://your-l1-endpoint
 
-   Pass `--destination` to sync into another directory, `--force` to delete local files that no longer exist in the Azure snapshot, or `--verbose` to stream detailed azcopy logs.
+# Devnet
+./external-node.sh --devnet start --l1-rpc-url https://your-l1-endpoint
+```
 
-2. Provide the L1 RPC URL (required):
+Or via environment variable:
 
-   ```bash
-   export GENERAL_L1_RPC_URL="https://your-l1-endpoint"
-   ```
+```bash
+export GENERAL_L1_RPC_URL="https://your-l1-endpoint"
+./external-node.sh start
+```
 
-3. Start the external node (or pass the URL directly):
+**Devnet only** — `--boot-node-urls` and `--external-network-secret-key` configure P2P networking and are optional (devnet is the only network running P2P right now; see [Network Identity Setup](#network-identity-setup-devnet-only)):
 
-   ```bash
-   # Mainnet
-   ./external-node.sh start
-   ./external-node.sh start --l1-rpc-url https://{RPC}
+- **`--boot-node-urls`** falls back to a hardcoded default for devnet if omitted.
+- **`--external-network-secret-key`** is auto-generated on first start if omitted; the script prints the generated value — save it and reuse it on subsequent starts to keep your P2P node identity stable.
 
-   # Testnet
-   ./external-node.sh --testnet start --l1-rpc-url https://{RPC}
-   ```
+```bash
+./external-node.sh --devnet start \
+  --l1-rpc-url https://your-l1-endpoint \
+  --boot-node-urls "enode://<pubkey>@<ip>:3060" \
+  --external-network-secret-key <your-key>
+```
 
-   The start command prepares the data directory (and its key subdirectories).
-   Starting the stack also launches the `proof-sync` service, which automatically syncs new proofs from Azure Blob Storage every 1 minute (configurable via `PROOF_SYNC_INTERVAL`).
+The start command creates the data directory and its key subdirectories automatically.
 
 ## Additional Commands
 
-All commands support the `--testnet` flag for testnet operation:
+All commands support the `--testnet` and `--devnet` flags:
 
 ```bash
-./external-node.sh [--testnet] <command>
+./external-node.sh [--testnet|--devnet] <command>
 ```
 
 - `status` — show the compose service status.
@@ -74,60 +81,84 @@ All commands support the `--testnet` flag for testnet operation:
 - `down` — stop and remove the containers.
 - `pull` — pull the latest container image.
 
-Set `CHAIN_DATA_DIR`, `SHARED_PROOF_DIR`, or `DOCKER_COMPOSE_FILE` to override defaults if your layout differs from this repository.
-The `start` command requires `GENERAL_L1_RPC_URL`; prefix the command with `GENERAL_L1_RPC_URL=...` if you prefer not to export it permanently.
+Set `CHAIN_DATA_DIR` or `DOCKER_COMPOSE_FILE` to override defaults if your layout differs from this repository.
 
-## Automatic Proof Synchronization
+## Network Identity Setup (Devnet Only)
 
-The `proof-sync` sidecar container automatically keeps your local proof storage synchronized with Azure Blob Storage. This prevents the external node from crashing when new proofs are processed but not yet available locally.
+Devnet is the only network running P2P networking right now — mainnet and testnet are still on v0.13.0 and don't use any of this. A devnet external node requires a secret key for P2P identity and a list of boot nodes for peer discovery. Both are optional when starting the node — see below.
 
-### Configuration
+### 1. Generate the secret key
 
-Customize the proof sync behavior using these environment variables:
-
-- `PROOF_SYNC_INTERVAL` — Sync interval in seconds (default: `60` = 1 minute)
-- `PROOF_STORAGE_URL` — Azure Blob URL or SAS URL for shared proofs (network-specific default)
-- `PROOF_SYNC_DELETE` — Set to `true` to delete local files that no longer exist in Azure (default: `false`)
-
-Example:
+If you don't provide `EXTERNAL_NETWORK_SECRET_KEY` (or `--external-network-secret-key`), `start` auto-generates one with `openssl rand -hex 32` and prints it. To pin your node's P2P identity across restarts, generate one yourself and reuse it:
 
 ```bash
-export PROOF_SYNC_INTERVAL=180  # Sync every 3 minutes
-export PROOF_SYNC_DELETE=true   # Keep local storage in exact sync
-./external-node.sh start
+openssl rand -hex 32
 ```
 
-The proof-sync service runs continuously alongside the external node and logs each sync operation. Check its logs with:
+Keep this value private — it uniquely identifies your node in the P2P network.
 
 ```bash
-# Mainnet
-docker logs -f adi_mainnet_proof_sync
+export EXTERNAL_NETWORK_SECRET_KEY=<64-hex-chars>
+```
 
-# Testnet
-docker logs -f adi_testnet_proof_sync
+### 2. Derive the public key (optional)
+
+Needed only if you want to share your node as a boot node for others:
+
+```bash
+cast wallet public-key --private-key <private-key>
+# Output: 0x92c5f671...
+```
+
+The output can be used as-is in the enode URL — no need to strip the `0x` prefix.
+
+### 3. Configure boot nodes
+
+Boot nodes are used for initial peer discovery. If you don't provide `BOOT_NODE_URLS` (or `--boot-node-urls`), `start` falls back to a hardcoded default for devnet. You only need to set this to point at your own boot nodes. Format:
+
+```
+enode://<public-key>@<ip-or-host>:<port>
+```
+
+- `public-key` — 128 hex chars; a `0x` prefix (as printed by `cast wallet public-key`) is fine and doesn't need to be stripped
+- `ip-or-host` — publicly reachable address of the boot node
+- `port` — default `3060`
+
+```bash
+# Single boot node
+export BOOT_NODE_URLS="enode://abcd1234...@1.2.3.4:3060"
+
+# Multiple boot nodes (comma-separated)
+export BOOT_NODE_URLS="enode://key1@host1:3060,enode://key2@host2:3060"
 ```
 
 ## Exposed Ports
 
-- `3050` — `external_node` JSON-RPC endpoint (`rpc_address`).
-- `3054` — External Node Block Replay port so it can be shared further (`sequencer_block_replay_server_address`)
-- `3071` — Node status/health server (`status_server_address`).
-- `3312` — Prometheus metrics endpoint (`general_prometheus_port`).
+### Mainnet / Testnet (v0.13.0, pre-P2P)
+
+| Port   | Service            | Notes                                   |
+|--------|--------------------|-----------------------------------------|
+| `3050` | JSON-RPC           | `rpc_address`                           |
+| `3054` | HTTP block replay  | `sequencer_block_replay_server_address` |
+| `3071` | Health / status    | `status_server_address`                 |
+| `3312` | Prometheus metrics | `observability_prometheus_port`         |
+
+### Devnet (v0.20.12, P2P)
+
+| Port           | Service            | Notes                                |
+|----------------|--------------------|--------------------------------------|
+| `3050`         | JSON-RPC           | `rpc_address`                        |
+| `3060` TCP+UDP | P2P devp2p         | peer discovery and block propagation |
+| `3071`         | Health / status    | `status_server_address`              |
+| `3312`         | Prometheus metrics | `observability_prometheus_port`      |
+
+Ensure port `3060` is open for both TCP and UDP inbound traffic on devnet.
+
+Don't run more than one network on the same host at once, or use `CONTAINER_PREFIX` and remap ports via `docker-compose.override.yml` if you need to.
 
 ## Upgrades
 
 For version-specific upgrade instructions, see the [upgrades](./upgrades/) directory:
 
-- [v0.8.4 to v0.10.0](./upgrades/v0.8.4_to_v0.10.0.md) - **Breaking upgrade** requiring full chain resync
-
-## Common Issues
-
-### Committed batch is not present in proof storage
-
-The `proof-sync` sidecar service automatically prevents this issue by continuously syncing new proofs from Azure Blob Storage.
-
-If you still encounter this error:
-1. Check that the `proof-sync` container is running: `docker ps | grep proof_sync`
-2. Check proof-sync logs: `docker logs <container_network_prefix>_proof_sync`
-3. Manually sync if needed: `./external-node.sh download`
-4. Consider reducing `PROOF_SYNC_INTERVAL` for more frequent syncs
+- [v0.8.4 → v0.10.0](./upgrades/v0.8.4_to_v0.10.0.md) — **Breaking upgrade** requiring full chain resync
+- [v0.13.0 → v0.20.12](upgrades/v0.13.0_to_v0.20.12.md) — currently applied to **devnet only**; P2P replaces HTTP replay, proof-sync removed. Mainnet and testnet will follow separately.

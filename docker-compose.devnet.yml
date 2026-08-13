@@ -1,0 +1,43 @@
+services:
+  external_node:
+    image: ghcr.io/adi-foundation-labs/server:${EN_VERSION:-v0.20.12-b1}
+    container_name: ${CONTAINER_PREFIX:-adi_devnet}_external_node
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      genesis_bridgehub_address: "${BRIDGEHUB_ADDRESS:-0x64140030aD9FE756147665a81cAdB3502565d8E1}"
+      genesis_bytecode_supplier_address: "${BYTECODE_SUPPLIER_ADDRESS:-0x40CE5C2f96a0487273cc6983E60aEBed092c10Be}"
+      genesis_chain_id: "${CHAIN_ID:-99985}"
+      general_main_node_rpc_url: "${MAIN_RPC_URL:-https://rpc-devnet6.adifoundation.ai/}"
+      general_rocks_db_path: "/chain/db/node1"
+      sequencer_block_dump_path: "/chain/db/node1/block_dumps"
+      rpc_address: "0.0.0.0:3050"
+      status_server_address: "0.0.0.0:3071"
+      observability_prometheus_port: "3312"
+      observability_log_format: "terminal"
+      observability_log_use_color: "true"
+      l1_provider_rpc_url: "${GENERAL_L1_RPC_URL}"
+      genesis_genesis_input_path: "/genesis/genesis.json"
+      general_node_role: "external"
+      network_enabled: "true"
+      network_host: "0.0.0.0"
+      network_port: "3060"
+      network_secret_key: "${EXTERNAL_NETWORK_SECRET_KEY}"
+      network_boot_nodes: "${BOOT_NODE_URLS}"
+      RUST_LOG: "info,zksync_os_server=info,zksync_os_sequencer=info,zksync_os_merkle_tree=info,zksync_os_priority_tree=info,zksync_os_server::prover_api=info,discv5::service=error"
+      RUST_BACKTRACE: 1
+    volumes:
+      - ${CHAIN_DATA_DIR:-./devnet_data}:/chain
+      - ./genesis/devnet.json:/genesis/genesis.json:ro
+    ports:
+      - "3050:3050"
+      - "3071:3071"
+      - "3060:3060/tcp"
+      - "3060:3060/udp"
+      - "3312:3312"
+    networks:
+      - zkos-net
+
+networks:
+  zkos-net:
+    driver: bridge
