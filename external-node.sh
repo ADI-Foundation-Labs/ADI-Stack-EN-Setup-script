@@ -12,9 +12,11 @@ NETWORK="${NETWORK:-mainnet}"
 # Can be overridden via DOCKER_COMPOSE_FILE env var
 DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-}"
 
-# Default boot node URL for devnet (the only network on P2P networking right now).
-# mainnet and testnet are still on v0.13.0 (pre-P2P) — they'll get their own upgrade later.
+# Default boot node URLs for networks running P2P (devnet, testnet).
+# mainnet is still on v0.13.0 (pre-P2P) — it'll get its own upgrade later.
 DEVNET_DEFAULT_BOOT_NODES="enode://0x92c5f671dd80c87890c05a1aea5175d3473469acad922e926b6aba9246ee3e801a892d9d8e76d2d272c9d3b2c081f23c379434d0a40a3b27549d2cf9f706fbfb@20.216.31.107:3060"
+
+TESTNET_DEFAULT_BOOT_NODES="enode://0x89317fb81e979bd5b0d102f2c3da3ccb569cf2b2802fb0c3af562b625b1d695dc44b5c6ef3848697dce61e6cc9a8f9fe6ad89ff08cfb2ab4e51bc7a55986ee6f@20.233.0.124:3060"
 
 # Network-specific configurations
 declare -A MAINNET_CONFIG=(
@@ -28,9 +30,8 @@ declare -A MAINNET_CONFIG=(
 declare -A TESTNET_CONFIG=(
     [name]="testnet"
     [data_dir]="testnet_data"
-    [proof_storage_url]="https://adiproofs.blob.core.windows.net/shared"
-    [proof_sync_enabled]="true"
-    [p2p_enabled]="false"
+    [p2p_enabled]="true"
+    [boot_nodes]="$TESTNET_DEFAULT_BOOT_NODES"
 )
 
 declare -A DEVNET_CONFIG=(
@@ -83,9 +84,9 @@ Network Selection:
   --network <name>     Select network explicitly (mainnet, testnet, or devnet)
 
 Commands:
-  download   Mainnet/testnet only. Initial/manual sync of shared proof storage from Azure Blob Storage.
+  download   Mainnet only. Initial/manual sync of shared proof storage from Azure Blob Storage.
              Note: When running, the proof-sync service automatically syncs new proofs.
-             Not available on devnet — it doesn't use proof-sync (P2P networking instead).
+             Not available on devnet or testnet — they don't use proof-sync (P2P networking instead).
   start      Start the external node via docker compose.
   stop       Stop the external node and all services.
   down       Stop and remove all containers.
@@ -108,18 +109,18 @@ CHAIN_DATA_DIR              Host directory that maps to /chain inside the contai
                             Stores blockchain data and state on the host machine.
 GENERAL_L1_RPC_URL          (required) L1 RPC endpoint used by the external node.
                             Must be a full Ethereum-compatible RPC (e.g. Infura, Alchemy, or self-hosted).
-EXTERNAL_NETWORK_SECRET_KEY Devnet only. Private key used to identify and authenticate the external node in the P2P network.
+EXTERNAL_NETWORK_SECRET_KEY Devnet/testnet only. Private key used to identify and authenticate the external node in the P2P network.
                             Auto-generated if not set. Reuse the same key on restarts to keep your P2P node identity.
-BOOT_NODE_URLS              Devnet only. Comma-separated list of bootnode enode URLs used for P2P peer discovery.
-                            Falls back to a hardcoded default for devnet if not set.
+BOOT_NODE_URLS              Devnet/testnet only. Comma-separated list of bootnode enode URLs used for P2P peer discovery.
+                            Falls back to a hardcoded default for the network if not set.
 
-Note: mainnet and testnet are still on v0.13.0 (pre-P2P) and don't use EXTERNAL_NETWORK_SECRET_KEY or
-BOOT_NODE_URLS. Only devnet runs v0.20.12 with P2P networking. Mainnet and testnet will be upgraded
+Note: mainnet is still on v0.13.0 (pre-P2P) and doesn't use EXTERNAL_NETWORK_SECRET_KEY or
+BOOT_NODE_URLS. Devnet and testnet run v0.20.12 with P2P networking. Mainnet will be upgraded
 separately later — watch this repo for updates.
 
 Server versions:
   Mainnet: v0.13.0-b4 (docker-compose.mainnet.yml)
-  Testnet: v0.13.0-b4 (docker-compose.testnet.yml)
+  Testnet: v0.20.12-b1 (docker-compose.testnet.yml, P2P networking)
   Devnet:  v0.20.12-b1 (docker-compose.devnet.yml, P2P networking)
 
 Examples:
@@ -271,13 +272,13 @@ start_node() {
         ;;
       --boot-node-urls)
         [[ $# -ge 2 ]] || fatal "Missing value for $1."
-        [[ "$P2P_ENABLED" == "true" ]] || fatal "--boot-node-urls is only supported on devnet (P2P networking). $NETWORK_NAME is still on v0.13.0."
+        [[ "$P2P_ENABLED" == "true" ]] || fatal "--boot-node-urls is only supported on networks with P2P networking (devnet, testnet). $NETWORK_NAME is still on v0.13.0."
         boot_node_urls="$2"
         shift 2
         ;;
       --external-network-secret-key)
         [[ $# -ge 2 ]] || fatal "Missing value for $1."
-        [[ "$P2P_ENABLED" == "true" ]] || fatal "--external-network-secret-key is only supported on devnet (P2P networking). $NETWORK_NAME is still on v0.13.0."
+        [[ "$P2P_ENABLED" == "true" ]] || fatal "--external-network-secret-key is only supported on networks with P2P networking (devnet, testnet). $NETWORK_NAME is still on v0.13.0."
         external_network_secret_key="$2"
         shift 2
         ;;
@@ -287,9 +288,9 @@ Usage: external-node.sh start [--l1-rpc-url <url>]
 
 Options:
   --l1-rpc-url, -u               Provide the required L1 RPC URL (alternatively set GENERAL_L1_RPC_URL).
-  --boot-node-urls               Devnet only. Override the boot node URLs (alternatively set BOOT_NODE_URLS).
-                                 Falls back to the hardcoded default for devnet if omitted.
-  --external-network-secret-key  Devnet only. Provide the external network secret key (alternatively set EXTERNAL_NETWORK_SECRET_KEY).
+  --boot-node-urls               Devnet/testnet only. Override the boot node URLs (alternatively set BOOT_NODE_URLS).
+                                 Falls back to the hardcoded default for the network if omitted.
+  --external-network-secret-key  Devnet/testnet only. Provide the external network secret key (alternatively set EXTERNAL_NETWORK_SECRET_KEY).
                                  Auto-generated if omitted; save the printed value for reuse.
 EOF
         return 0
