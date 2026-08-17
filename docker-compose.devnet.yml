@@ -1,6 +1,6 @@
 services:
   external_node:
-    image: ghcr.io/adi-foundation-labs/server:${EN_VERSION:-v0.20.12-b1}
+    image: harbor.sde.adifoundation.ai/ghpc/adi-foundation-labs/server:${EN_VERSION:-v0.20.12-b1}
     container_name: ${CONTAINER_PREFIX:-adi_devnet}_external_node
     restart: unless-stopped
     working_dir: /app
