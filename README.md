@@ -59,6 +59,7 @@ export GENERAL_L1_RPC_URL="https://your-l1-endpoint"
 - **`--external-network-secret-key`** is auto-generated on first start if omitted; the script prints the generated value — save it and reuse it on subsequent starts to keep your P2P node identity stable.
 
 ```bash
+# Devnet
 ./external-node.sh --devnet start \
   --l1-rpc-url https://your-l1-endpoint \
   --boot-node-urls "enode://<pubkey>@<ip>:3060" \
@@ -66,6 +67,7 @@ export GENERAL_L1_RPC_URL="https://your-l1-endpoint"
 ```
 
 ```bash
+# Testnet
 ./external-node.sh --testnet start \
   --l1-rpc-url https://your-l1-endpoint \
   --boot-node-urls "enode://<pubkey>@<ip>:3060" \
