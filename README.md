@@ -2,7 +2,7 @@
 
 Helper scripts and configuration for running an ADI external node on **mainnet**, **testnet**, or **devnet**.
 
-> **🚧 Upgrade in progress:** `devnet` and `testnet` now run **v0.20.12** with P2P networking (see [Upgrades](#upgrades)). `mainnet` remains on **v0.13.0** for now — each network is upgraded separately, in its own branch. Watch this repo for updates.
+> **🚧 Upgrade complete:** `mainnet`, `testnet`, and `devnet` all now run **v0.20.12** with P2P networking (see [Upgrades](#upgrades)).
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ By default, the script runs on **mainnet**. To run on testnet or devnet, use the
 
 | Network | Version           | Main RPC                                             | Data Directory   |
 |---------|-------------------|------------------------------------------------------|------------------|
-| Mainnet | v0.13.0-b4        | `https://rpc.adifoundation.ai`                       | `./mainnet_data` |
+| Mainnet | v0.20.12-b1 (P2P) | `https://rpc.adifoundation.ai`                       | `./mainnet_data` |
 | Testnet | v0.20.12-b1 (P2P) | `https://rpc.ab.testnet.adifoundation.ai`            | `./testnet_data` |
 | Devnet  | v0.20.12-b1 (P2P) | `https://rpc-devnet6.dev.internal.adifoundation.ai/` | `./devnet_data`  |
 
@@ -53,14 +53,14 @@ export GENERAL_L1_RPC_URL="https://your-l1-endpoint"
 ./external-node.sh start
 ```
 
-**Devnet/testnet only** — `--boot-node-urls` and `--external-network-secret-key` configure P2P networking and are optional (devnet and testnet are the networks running P2P right now; see [Network Identity Setup](#network-identity-setup-devnettestnet-only)):
+`--boot-node-urls` and `--external-network-secret-key` configure P2P networking and are optional on every network (see [Network Identity Setup](#network-identity-setup)):
 
 - **`--boot-node-urls`** falls back to a hardcoded default for the network if omitted.
 - **`--external-network-secret-key`** is auto-generated on first start if omitted; the script prints the generated value — save it and reuse it on subsequent starts to keep your P2P node identity stable.
 
 ```bash
-# Devnet
-./external-node.sh --devnet start \
+# Mainnet
+./external-node.sh start \
   --l1-rpc-url https://your-l1-endpoint \
   --boot-node-urls "enode://<pubkey>@<ip>:3060" \
   --external-network-secret-key <your-key>
@@ -69,6 +69,14 @@ export GENERAL_L1_RPC_URL="https://your-l1-endpoint"
 ```bash
 # Testnet
 ./external-node.sh --testnet start \
+  --l1-rpc-url https://your-l1-endpoint \
+  --boot-node-urls "enode://<pubkey>@<ip>:3060" \
+  --external-network-secret-key <your-key>
+```
+
+```bash
+# Devnet
+./external-node.sh --devnet start \
   --l1-rpc-url https://your-l1-endpoint \
   --boot-node-urls "enode://<pubkey>@<ip>:3060" \
   --external-network-secret-key <your-key>
@@ -92,9 +100,9 @@ All commands support the `--testnet` and `--devnet` flags:
 
 Set `CHAIN_DATA_DIR` or `DOCKER_COMPOSE_FILE` to override defaults if your layout differs from this repository.
 
-## Network Identity Setup (Devnet/Testnet Only)
+## Network Identity Setup
 
-Devnet and testnet are the networks running P2P networking right now — mainnet is still on v0.13.0 and doesn't use any of this. A devnet/testnet external node requires a secret key for P2P identity and a list of boot nodes for peer discovery. Both are optional when starting the node — see below.
+Every network runs P2P networking now. An external node requires a secret key for P2P identity and a list of boot nodes for peer discovery. Both are optional when starting the node — see below.
 
 ### 1. Generate the secret key
 
@@ -143,17 +151,6 @@ export BOOT_NODE_URLS="enode://key1@host1:3060,enode://key2@host2:3060"
 
 ## Exposed Ports
 
-### Mainnet (v0.13.0, pre-P2P)
-
-| Port   | Service            | Notes                                   |
-|--------|--------------------|-----------------------------------------|
-| `3050` | JSON-RPC           | `rpc_address`                           |
-| `3054` | HTTP block replay  | `sequencer_block_replay_server_address` |
-| `3071` | Health / status    | `status_server_address`                 |
-| `3312` | Prometheus metrics | `observability_prometheus_port`         |
-
-### Devnet / Testnet (v0.20.12, P2P)
-
 | Port           | Service            | Notes                                |
 |----------------|--------------------|--------------------------------------|
 | `3050`         | JSON-RPC           | `rpc_address`                        |
@@ -161,7 +158,7 @@ export BOOT_NODE_URLS="enode://key1@host1:3060,enode://key2@host2:3060"
 | `3071`         | Health / status    | `status_server_address`              |
 | `3312`         | Prometheus metrics | `observability_prometheus_port`      |
 
-Ensure port `3060` is open for both TCP and UDP inbound traffic on devnet and testnet.
+Ensure port `3060` is open for both TCP and UDP inbound traffic.
 
 Don't run more than one network on the same host at once, or use `CONTAINER_PREFIX` and remap ports via `docker-compose.override.yml` if you need to.
 
@@ -170,4 +167,4 @@ Don't run more than one network on the same host at once, or use `CONTAINER_PREF
 For version-specific upgrade instructions, see the [upgrades](./upgrades/) directory:
 
 - [v0.8.4 → v0.10.0](./upgrades/v0.8.4_to_v0.10.0.md) — **Breaking upgrade** requiring full chain resync
-- [v0.13.0 → v0.20.12](upgrades/v0.13.0_to_v0.20.12.md) — currently applied to **devnet and testnet**; P2P replaces HTTP replay, proof-sync removed. Mainnet will follow separately.
+- [v0.13.0 → v0.20.12](upgrades/v0.13.0_to_v0.20.12.md) — applied to **mainnet, testnet, and devnet**; P2P replaces HTTP replay, proof-sync removed.
