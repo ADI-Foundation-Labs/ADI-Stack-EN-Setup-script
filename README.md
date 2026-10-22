@@ -2,7 +2,7 @@
 
 Helper scripts and configuration for running an ADI external node on **mainnet**, **testnet**, or **devnet**.
 
-> **🚧 Upgrade in progress:** `testnet` now runs **v0.24.2** (see [Upgrades](#upgrades)). `mainnet` and `devnet` remain on **v0.20.12** for now — each network is upgraded separately, in its own branch. Watch this repo for updates.
+> **🚧 Upgrade in progress:** `testnet` and `mainnet` now run **v0.24.2** (see [Upgrades](#upgrades)). `devnet` remains on **v0.20.12** for now — each network is upgraded separately, in its own branch. Watch this repo for updates.
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ By default, the script runs on **mainnet**. To run on testnet or devnet, use the
 
 | Network | Version           | Main RPC                                             | Data Directory   |
 |---------|-------------------|------------------------------------------------------|------------------|
-| Mainnet | v0.20.12-b1 (P2P) | `https://rpc.adifoundation.ai`                       | `./mainnet_data` |
+| Mainnet | v0.24.2-b7 (P2P)  | `https://rpc.adifoundation.ai`                       | `./mainnet_data` |
 | Testnet | v0.24.2-b7 (P2P)  | `https://rpc.ab.testnet.adifoundation.ai`            | `./testnet_data` |
 | Devnet  | v0.20.12-b1 (P2P) | `https://rpc-devnet6.dev.internal.adifoundation.ai/` | `./devnet_data`  |
 
@@ -168,4 +168,4 @@ For version-specific upgrade instructions, see the [upgrades](./upgrades/) direc
 
 - [v0.8.4 → v0.10.0](./upgrades/v0.8.4_to_v0.10.0.md) — **Breaking upgrade** requiring full chain resync
 - [v0.13.0 → v0.20.12](upgrades/v0.13.0_to_v0.20.12.md) — applied to **mainnet, testnet, and devnet**; P2P replaces HTTP replay, proof-sync removed.
-- [v0.20.12 → v0.24.2](./upgrades/v0.20.12_to_v0.24.2.md) — applied to **testnet**; upgrade external nodes before the main node, new public image path.
+- [v0.20.12 → v0.24.2](./upgrades/v0.20.12_to_v0.24.2.md) — applied to **testnet and mainnet**; upgrade external nodes before the main node, new public image path.
